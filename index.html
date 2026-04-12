@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>LOTTERY Systems - Login</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Firebase SDK v9 -->
+ <script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "TU_API_KEY",
+  authDomain: "bancachupon.firebaseapp.com",
+  databaseURL: "https://bancachupon-default-rtdb.firebaseio.com",
+  projectId: "bancachupon",
+  storageBucket: "bancachupon.appspot.com",
+  messagingSenderId: "TU_SENDER_ID",
+  appId: "TU_APP_ID"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+window.login = async function() {
+  const usuario = document.getElementById("usuario").value.trim();
+  const password = document.getElementById("password").value.trim();
+
+  // 🔹 Validar campos vacíos
+  if (!usuario || !password) {
+    alert("❌ Debe ingresar usuario y contraseña");
+    return;
+  }
+
+  try {
+    const snapshot = await get(child(ref(db), "Usuarios"));
+    const data = snapshot.val();
+
+    let acceso = false;
+    let tipoUsuario = "";
+    let asignado = "";
+    let usuarioEncontrado = false;
+
+    if (data) {
+      for (let key in data) {
+        const u = data[key];
+
+        if (u.NombreUsuario === usuario) {
+          usuarioEncontrado = true;
+
+          if (u.Clave === password && u.Activo === true) {
+            tipoUsuario = u.TipoUsuario;
+            asignado = u.Asignado;
+
+            if (tipoUsuario === "Administrador" || tipoUsuario === "ADM") {
+              acceso = true;
+              break;
+            } else {
+              alert("❌ Solo administradores pueden entrar");
+              return;
+            }
+          } else {
+            alert("❌ Usuario o clave incorrecta");
+            return;
+          }
+        }
+      }
+    }
+
+    if (!usuarioEncontrado) {
+      alert("❌ Usuario o clave incorrecta");
+      return;
+    }
+
+    if (acceso) {
+      localStorage.setItem("usuarioLogueado", JSON.stringify({
+        nombre: usuario,
+        tipo: tipoUsuario,
+        asignado: asignado
+      }));
+
+      // 🔹 Alert opcional para depuración del tipo de usuario
+      // alert("TIPO USUARIO LOGUEADO: " + tipoUsuario);
+
+      window.location.href = "principal.html";
+
+      document.getElementById("usuario").value = "";
+      document.getElementById("password").value = "";
+    }
+
+  } catch (error) {
+    console.error("Error al consultar Firebase:", error);
+    alert("❌ Error al intentar acceder. Intente nuevamente");
+  }
+}
+</script>
+
+  <style>
+    body { margin:0; font-family: Arial, sans-serif; background:#f9f9f9; }
+    .header { background:#512BD4; color:white; text-align:center; padding:15px; font-size:20px; font-weight:bold; }
+    .subheader { background:white; color:#333; text-align:center; padding:10px; font-size:18px; font-weight:bold; }
+    .divider { background:#512BD4; height:5px; }
+    .section-title { background:#512BD4; color:white; text-align:center; padding:20px; font-size:22px; font-weight:bold; }
+    .login-container { max-width:400px; margin:30px auto; background:white; padding:20px; border-radius:8px; box-shadow:0 0 10px rgba(0,0,0,0.1); }
+    .login-container label { display:block; margin:10px 0 5px; font-weight:bold; }
+    .login-container input { width:95%; padding:10px; margin-bottom:15px; border:1px solid #ccc; border-radius:5px; }
+    .login-container button { width:100%; padding:12px; background:#512BD4; color:white; border:none; border-radius:5px; font-size:16px; cursor:pointer; }
+    .login-container button:hover { background:#3e1fa3; }
+  </style>
+</head>
+<body>
+  <div class="header">LOTTERY SYSTEMS</div>
+  <div class="subheader">Consorcio de Bancas</div>
+  <div class="divider"></div>
+  <div class="section-title">Acceso al Sistema</div>
+
+  <div class="login-container">
+    <label for="usuario">Usuario</label>
+    <input type="text" id="usuario" placeholder="Ingrese usuario">
+
+    <label for="password">Password</label>
+    <input type="password" id="password" placeholder="Ingrese contraseña">
+
+    <button onclick="login()">Login</button>
+
+    
+  </div>
+
+<!-- 🔥 CONTROL DE INACTIVIDAD (AGREGADO) -->
+<script>
+let tiempoInactivo;
+const LIMITE = 10 * 60 * 1000; // 5 minutos
+
+function resetTimer(){
+  clearTimeout(tiempoInactivo);
+  tiempoInactivo = setTimeout(cerrarSesionAuto, LIMITE);
+}
+
+function cerrarSesionAuto(){
+  localStorage.removeItem("usuarioLogueado");
+  alert("Sesión cerrada por inactividad");
+  location.reload();
+}
+
+// Eventos que reinician el contador
+["click","mousemove","keypress","touchstart"].forEach(evt=>{
+  document.addEventListener(evt, resetTimer);
+});
+
+// Iniciar contador
+resetTimer();
+</script>
+
+</body>
+</html>

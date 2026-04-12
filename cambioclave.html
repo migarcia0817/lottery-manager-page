@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>LOTTERY SYSTEMS - Cambios y Bloqueo</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body { margin:0; font-family: Arial, sans-serif; background:#f9f9f9; }
+.topbar { background:#512BD4; color:white; display:flex; justify-content:space-between; align-items:center; padding:10px 20px; position:relative; }
+.logo-section { display:flex; align-items:center; }
+.logo-section img { height:40px; margin-right:10px; }
+.logo-section span { font-size:20px; font-weight:bold; }
+.hamburger { font-size:26px; cursor:pointer; user-select:none; }
+.menu-dropdown {
+  position:absolute; top:60px; right:20px; background:white; 
+  border-radius:8px; box-shadow:0 0 10px rgba(0,0,0,0.2);
+  display:none; flex-direction:column; min-width:200px; z-index:999;
+}
+.menu-dropdown button {
+  padding:12px; border:none; background:white; text-align:left;
+  cursor:pointer; font-weight:bold; border-bottom:1px solid #eee;
+}
+.menu-dropdown button:hover { background:#f2f2f2; }
+
+.user-info { width:100%; background:#e0d4ff; display:flex; justify-content:flex-end; padding:5px 20px; font-size:14px; color:#333; }
+.titulo-bar { width:95%; margin:20px auto; padding:10px; background:#512BD4; color:white; font-size:20px; font-weight:bold; border-radius:5px; text-align:center; }
+
+.form-container {
+  max-width:900px; width:95%; margin:30px auto; display:flex; gap:20px;
+  justify-content:space-between;
+}
+
+/* Bloques individuales */
+.bloque {
+  background:white; padding:20px; border-radius:8px; box-shadow:0 0 10px rgba(0,0,0,0.1);
+  flex:1;
+}
+
+.bloque label { display:block; margin-top:15px; font-weight:bold; }
+.bloque select, .bloque input { 
+  width:100%; padding:10px; margin-top:5px; border:1px solid #ccc; border-radius:5px; font-size:14px; box-sizing:border-box;
+}
+.bloque button { 
+  width:100%; padding:12px; margin-top:20px; font-size:16px; font-weight:bold; border:none; border-radius:5px; cursor:pointer; color:white; background:#512BD4;
+}
+.bloque button:hover { background:#4019a8; }
+
+/* Colores para usuarios bloqueados */
+.select-bloqueado option[disabled] { color:red; }
+.select-activo option { color:green; }
+
+@media (max-width:900px){
+  .form-container { flex-direction:column; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="topbar">
+  <div class="logo-section">
+    <img src="lote.png" alt="Logo">
+    <span>Lottery</span>
+  </div>
+  <div class="hamburger" onclick="toggleMenu()">☰</div>
+  <div id="menuDropdown" class="menu-dropdown">
+    <button onclick="window.location.href='principal.html'">Principal</button>
+    <button onclick="window.location.href='loterias.html'">Loterías</button>
+    <button onclick="window.location.href='bancas.html'">Banca</button>
+    <button onclick="window.location.href='tickets.html'">Ticket</button>
+    <button onclick="window.location.href='cambioclave.html'">Cambiar Usuario</button>
+    <button onclick="localStorage.removeItem('usuarioLogueado'); window.location.href='index.html';">Cerrar Sesión</button>
+  </div>
+</div>
+
+<div class="user-info" id="userInfo">Usuario: -- | Fecha/Hora: --</div>
+<div class="titulo-bar">Gestión de Usuarios</div>
+
+<div class="form-container">
+
+  <!-- BLOQUE CAMBIO DE CLAVE -->
+  <div class="bloque">
+    <h3>Cambiar Clave</h3>
+    <label for="usuariosClave">Usuario:</label>
+    <select id="usuariosClave">
+      <option>Cargando...</option>
+    </select>
+    <label for="nuevaClave">Nueva Clave:</label>
+    <input type="password" id="nuevaClave" placeholder="Ingrese nueva clave">
+    <label for="confirmarClave">Confirmar Clave:</label>
+    <input type="password" id="confirmarClave" placeholder="Confirme la clave">
+    <button onclick="guardarClave()">Guardar</button>
+  </div>
+
+  <!-- BLOQUE BLOQUEAR / DESBLOQUEAR -->
+  <div class="bloque">
+    <h3>Bloquear / Desbloquear</h3>
+    <label for="usuariosBloqueo">Usuario:</label>
+    <select id="usuariosBloqueo" class="select-activo">
+      <option>Cargando...</option>
+    </select>
+    <button onclick="bloquearUsuario()">Bloquear / Desbloquear</button>
+  </div>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+import { getDatabase, ref, get, child, update } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+
+/* 🔥 FIREBASE */
+const app = initializeApp({
+  apiKey: "TU_API_KEY",
+  databaseURL: "https://bancachupon-default-rtdb.firebaseio.com"
+});
+const db = getDatabase(app);
+
+// Usuario logueado
+const usuarioGuardado = JSON.parse(localStorage.getItem("usuarioLogueado"));
+const usuarioLogueado = usuarioGuardado ? usuarioGuardado.nombre : "Invitado";
+
+// Menu
+window.toggleMenu = () => {
+  const menu = document.getElementById("menuDropdown");
+  menu.style.display = menu.style.display === "flex" ? "none" : "flex";
+};
+
+// Info usuario
+function actualizarUserInfo(){
+  const now = new Date();
+  document.getElementById("userInfo").innerHTML =
+    `Usuario: ${usuarioLogueado} | Fecha/Hora: ${now.toLocaleString()}`;
+}
+setInterval(actualizarUserInfo,1000);
+actualizarUserInfo();
+
+// Cargar usuarios en ambos select
+async function cargarUsuarios() {
+  const selectClave = document.getElementById("usuariosClave");
+  const selectBloqueo = document.getElementById("usuariosBloqueo");
+
+  selectClave.innerHTML = "<option>Cargando...</option>";
+  selectBloqueo.innerHTML = "<option>Cargando...</option>";
+
+  try {
+    const snapshot = await get(child(ref(db), "Usuarios"));
+    const data = snapshot.val() || {};
+
+    selectClave.innerHTML = "";
+    selectBloqueo.innerHTML = "";
+
+    for (const uid in data) {
+      const user = data[uid];
+
+      // ✅ Si es Administrador ve todos, si es ADM solo sus asignados
+      if (usuarioGuardado.tipo === "Administrador" || user.Asignado === usuarioGuardado.nombre) {
+
+        // Opción para cambio de clave
+        const optionClave = document.createElement("option");
+        optionClave.value = uid;
+        optionClave.textContent = user.NombreUsuario;
+        selectClave.appendChild(optionClave);
+
+        // Opción para bloqueo/desbloqueo
+        const optionBloqueo = document.createElement("option");
+        optionBloqueo.value = uid;
+        optionBloqueo.textContent = user.NombreUsuario;
+        optionBloqueo.style.color = user.Activo ? "green" : "red";
+        selectBloqueo.appendChild(optionBloqueo);
+      }
+    }
+
+    if (selectClave.options.length === 0) selectClave.innerHTML = "<option>No hay usuarios</option>";
+    if (selectBloqueo.options.length === 0) selectBloqueo.innerHTML = "<option>No hay usuarios</option>";
+
+  } catch (e) {
+    alert("Error cargando usuarios: " + e.message);
+    selectClave.innerHTML = "<option>Error al cargar usuarios</option>";
+    selectBloqueo.innerHTML = "<option>Error al cargar usuarios</option>";
+  }
+}
+
+// Guardar clave
+window.guardarClave = async function(){
+  const uid = document.getElementById("usuariosClave").value;
+  const nueva = document.getElementById("nuevaClave").value.trim();
+  const confirmar = document.getElementById("confirmarClave").value.trim();
+  if(!uid){ alert("Seleccione usuario"); return; }
+  if(!nueva || !confirmar){ alert("Complete ambos campos"); return; }
+  if(nueva !== confirmar){ alert("Claves no coinciden"); return; }
+
+  try{
+    await update(ref(db, `Usuarios/${uid}`), { Clave: nueva });
+    alert("Clave actualizada correctamente");
+    document.getElementById("nuevaClave").value = "";
+    document.getElementById("confirmarClave").value = "";
+  }catch(e){ alert("Error: " + e.message); }
+}
+
+// Bloquear / Desbloquear usuario
+window.bloquearUsuario = async function(){
+  const uid = document.getElementById("usuariosBloqueo").value;
+  if(!uid){ alert("Seleccione usuario"); return; }
+
+  try{
+    const snapshot = await get(ref(db, `Usuarios/${uid}`));
+    const user = snapshot.val();
+    await update(ref(db, `Usuarios/${uid}`), { Activo: !user.Activo });
+    alert(`Usuario ${user.NombreUsuario} ahora está ${user.Activo ? "bloqueado" : "activo"}`);
+    cargarUsuarios(); // refresca selects
+  }catch(e){ alert("Error: " + e.message); }
+}
+
+cargarUsuarios();
+</script>
+
+</body>
+</html>

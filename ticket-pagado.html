@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Tickets Pagados</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body { margin:0; font-family: Arial, sans-serif; background:#f9f9f9; }
+.topbar { background:#512BD4; color:white; display:flex; justify-content:space-between; padding:10px 20px; }
+.hamburger { font-size:26px; cursor:pointer; }
+.menu-dropdown { position:absolute; top:60px; right:20px; background:white; display:none; flex-direction:column; box-shadow:0 0 10px rgba(0,0,0,0.2); }
+.menu-dropdown button { padding:10px; border:none; background:white; cursor:pointer; }
+.menu-dropdown button:hover { background:#f2f2f2; }
+
+.user-info { background:#e0d4ff; padding:5px 20px; text-align:right; }
+.titulo-bar { width:95%; margin:20px auto; background:#512BD4; color:white; padding:10px; text-align:center; border-radius:5px; }
+
+.filtros { width:95%; margin:auto; display:flex; gap:10px; flex-wrap:wrap; }
+.filtros input, .filtros select, .filtros button { padding:10px; border-radius:5px; }
+
+#btnBuscar { background:#28a745; color:white; }
+#btnImprimir { background:#ff7f00; color:white; }
+#btnRegresar { background:#6c757d; color:white; }
+
+.total-general { width:95%; margin:10px auto; font-weight:bold; text-align:right; }
+
+table { width:95%; margin:auto; border-collapse:collapse; background:white; }
+th, td { border:1px solid #ccc; padding:6px; text-align:center; }
+th { background:#512BD4; color:white; }
+</style>
+</head>
+
+<body>
+
+<div class="topbar">
+  <div style="font-size: 18; font-weight: bold;">Lottery</div>
+  <div class="hamburger" onclick="toggleMenu()">☰</div>
+</div>
+
+<div id="menuDropdown" class="menu-dropdown">
+  <button onclick="window.location.href='principal.html'">Principal</button>
+    <button onclick="window.location.href='loterias.html'">Loterías</button>
+    <button onclick="window.location.href='bancas.html'">Bancas</button>
+    <button onclick="window.location.href='tickets.html'">Tickets</button>
+    <button onclick="window.location.href='cambioclave.html'">Cambio Clave</button>
+    <button onclick="logout()">Cerrar Sesión</button>
+</div>
+
+<div class="user-info" id="userInfo"></div>
+<div class="titulo-bar">Tickets Pagados</div>
+
+<div class="filtros">
+  <input type="date" id="fechaDesde">
+  <input type="date" id="fechaHasta">
+  <select id="comboUsuario"></select>
+  <button id="btnBuscar">Buscar</button>
+  <button id="btnImprimir">Imprimir</button>
+  <button id="btnRegresar">Regresar</button>
+</div>
+
+<div class="total-general" id="totalGeneral">
+  Total Tickets: 0 | Total Ganado: RD$ 0.00
+</div>
+
+<table>
+<thead>
+<tr>
+<th>UsuarioId</th>
+<th>Banca</th>
+<th>Fecha</th>
+<th>Ticket</th>
+<th>Premio</th>
+<th>Lotería</th>
+</tr>
+</thead>
+<tbody id="tablaTickets"></tbody>
+</table>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+
+const app = initializeApp({
+  apiKey: "TU_API_KEY",
+  databaseURL: "https://bancachupon-default-rtdb.firebaseio.com"
+});
+const db = getDatabase(app);
+
+//contro de cerrar solo 
+let tiempoInactivo;
+const LIMITE = 10 * 60 * 1000;
+
+function resetTimer(){
+  clearTimeout(tiempoInactivo);
+  tiempoInactivo = setTimeout(cerrarSesionAuto, LIMITE);
+}
+
+function cerrarSesionAuto(){
+  localStorage.removeItem("usuarioLogueado");
+  alert("Sesión cerrada por inactividad");
+  window.location.href = "login.html";
+}
+
+["click","mousemove","keypress","touchstart"].forEach(evt=>{
+  document.addEventListener(evt, resetTimer);
+});
+
+resetTimer();
+
+// menú
+window.toggleMenu = ()=>{
+  const m = document.getElementById("menuDropdown");
+  m.style.display = m.style.display === "flex" ? "none" : "flex";
+};
+
+window.logout = ()=>{
+  localStorage.removeItem("usuarioLogueado");
+  location.href="index.html";
+};
+
+// usuario
+const userData = JSON.parse(localStorage.getItem("usuarioLogueado"));
+const usuarioLogueado = userData?.nombre || "Invitado";
+
+function actualizarInfo(){
+  document.getElementById("userInfo").innerText =
+    "Usuario: " + usuarioLogueado + " | " + new Date().toLocaleString();
+}
+setInterval(actualizarInfo,1000);
+
+// fecha hoy
+function fechaHoy(){
+  return new Date().toISOString().split("T")[0];
+}
+
+// cargar usuarios
+async function cargarUsuarios(){
+  const combo = document.getElementById("comboUsuario");
+  combo.innerHTML = "<option value=''>Todos</option>";
+
+  const snap = await get(child(ref(db),"Usuarios"));
+  const data = snap.val() || {};
+
+  for(const id in data){
+    combo.innerHTML += `<option value="${data[id].NombreUsuario}">
+      ${data[id].NombreUsuario}
+    </option>`;
+  }
+}
+
+// buscar tickets pagados
+async function buscarTickets(){
+  const desde = document.getElementById("fechaDesde").value;
+  const hasta = document.getElementById("fechaHasta").value;
+  const usuarioSel = document.getElementById("comboUsuario").value;
+
+  const tabla = document.getElementById("tablaTickets");
+  const totalDiv = document.getElementById("totalGeneral");
+
+  if(!desde || !hasta){
+    alert("Seleccione fechas");
+    return;
+  }
+
+  tabla.innerHTML = "<tr><td colspan='6'>Cargando...</td></tr>";
+  totalDiv.innerText = "Total Tickets: 0 | Total Ganado: RD$ 0.00";
+
+  const snap = await get(child(ref(db),"ventas"));
+  const data = snap.val() || {};
+
+  tabla.innerHTML = "";
+
+  let totalTickets = 0;
+  let totalGanado = 0;
+  let encontrados = false;
+
+  for(const id in data){
+    const v = data[id];
+
+    // 🔥 SOLO PAGADOS
+    if(v.EsPagado !== true && v.EsPagado !== "true") continue;
+
+    const fecha = v.FechaGanador 
+      ? v.FechaGanador.substring(0,10) 
+      : "N/A";
+
+    if(fecha < desde || fecha > hasta) continue;
+    if(usuarioSel && v.NombreUsuario !== usuarioSel) continue;
+
+    encontrados = true;
+    totalTickets++;
+
+    const usuarioId = v.UsuarioId ?? "N/A";
+    const banca = v.NombreUsuario ?? "N/A";
+    const numeroTicket = v.NumeroTicket ?? "N/A";
+    const premio = Number(v.PremioCalculado || 0);
+
+    totalGanado += premio;
+
+    const loteria = v.LoteriasNormales 
+      || v.LoteriasAsociadasClave 
+      || v.LoteriasSuperPale
+      || "N/A";
+
+    tabla.innerHTML += `
+      <tr>
+        <td>${usuarioId}</td>
+        <td>${banca}</td>
+        <td>${fecha}</td>
+        <td>${numeroTicket}</td>
+        <td>${premio.toFixed(2)}</td>
+        <td>${loteria}</td>
+      </tr>
+    `;
+  }
+
+  totalDiv.innerText = `Total Tickets: ${totalTickets} | Total Ganado: RD$ ${totalGanado.toFixed(2)}`;
+
+  if(!encontrados){
+    tabla.innerHTML = "<tr><td colspan='6'>No se encontraron tickets pagados.</td></tr>";
+  }
+}
+
+// botones
+document.getElementById("btnBuscar").onclick = buscarTickets;
+document.getElementById("btnImprimir").onclick = ()=> window.print();
+document.getElementById("btnRegresar").onclick = ()=> location.href="reportes.html";
+
+// inicio
+window.addEventListener("DOMContentLoaded", async ()=>{
+  actualizarInfo();
+
+  document.getElementById("fechaDesde").value = fechaHoy();
+  document.getElementById("fechaHasta").value = fechaHoy();
+
+  await cargarUsuarios();
+  await buscarTickets();
+});
+</script>
+
+</body>
+</html>

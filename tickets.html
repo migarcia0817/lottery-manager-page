@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>LOTTERY SYSTEMS - Manejo de Ticket</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body { margin:0; font-family: Arial; background:#f9f9f9; }
+
+.topbar { background:#512BD4; color:white; display:flex; justify-content:space-between; align-items:center; padding:10px 20px; }
+.logo-section { display:flex; align-items:center; }
+.logo-section img { height:40px; margin-right:10px; }
+
+/* 🔥 MENU */
+.hamburger { font-size:24px; cursor:pointer; }
+
+.menu-dropdown {
+  display:none;
+  position:absolute;
+  top:60px;
+  right:20px;
+  background:white;
+  border-radius:8px;
+  box-shadow:0 2px 10px rgba(0,0,0,0.2);
+  overflow:hidden;
+  z-index:1000;
+}
+
+.menu-dropdown button{
+  display:block;
+  width:100%;
+  padding:12px;
+  border:none;
+  background:white;
+  text-align:left;
+  cursor:pointer;
+  color:black;
+}
+
+.menu-dropdown button:hover{
+  background:#f1f1f1;
+}
+
+.user-info { background:#e0d4ff; padding:5px 20px; text-align:right; }
+
+.titulo-bar { margin:20px auto; width:95%; padding:10px; background:#512BD4; color:white; text-align:center; border-radius:5px; }
+
+.form-container { max-width:500px; width:95%; margin:20px auto; background:white; padding:20px; border-radius:8px; }
+
+input { width:65%; padding:10px; }
+button { padding:10px; border:none; color:white; cursor:pointer; margin-top:10px; }
+.btn-buscar { background:#007bff; }
+.btn-limpiar { background:#6c757d; }
+.btn-eliminar { background:#dc3545; }
+.btn-regresar { background:#512BD4; }
+
+.ticket-info { display:none; margin-top:15px; }
+.ticket-info div { display:flex; gap:10px; margin-bottom:5px; }
+.ticket-info b { min-width:140px; }
+
+table { width:100%; margin-top:10px; border-collapse:collapse; display:none; }
+th, td { border:1px solid #ccc; padding:8px; text-align:center; }
+th { background:#512BD4; color:white; }
+
+@media(max-width:600px){
+  input { width:100%; }
+  button { width:100%; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="topbar">
+  <div class="logo-section">
+    <img src="lote.png">
+    <span>Lottery</span>
+  </div>
+
+  <!-- 🔥 BOTON MENU -->
+  <div class="hamburger" onclick="toggleMenu()">☰</div>
+</div>
+
+<!-- 🔥 MENU -->
+<div id="menuDropdown" class="menu-dropdown">
+  <button onclick="window.location.href='principal.html'">Principal</button>
+  <button onclick="window.location.href='loterias.html'">Loterías</button>
+  <button onclick="window.location.href='bancas.html'">Banca</button>
+  <button onclick="window.location.href='tickets.html'">Ticket</button>
+  <button onclick="window.location.href='cambioclave.html'">Cambiar Usuario</button>
+  <button onclick="localStorage.removeItem('usuarioLogueado'); window.location.href='index.html';">Cerrar Sesión</button>
+</div>
+
+<div class="user-info" id="userInfo"></div>
+
+<div class="titulo-bar">Manejo de Ticket</div>
+
+<div class="form-container">
+  <input type="number" id="numeroTicket" placeholder="Número de Ticket">
+  <button class="btn-buscar" onclick="buscarTicket()">Buscar</button>
+
+  <div id="ticketInfo" class="ticket-info">
+    <div><b>Número Ticket:</b><span id="tdNumero"></span></div>
+    <div><b>Fecha:</b><span id="tdFecha"></span></div>
+    <div><b>Serial:</b><span id="tdSerial"></span></div>
+    <div><b>Banca:</b><span id="tdBanca"></span></div>
+    <div><b>Total:</b><span id="tdMonto"></span></div>
+  </div>
+
+  <table id="detalleTicket">
+    <tr>
+      <th>Tipo</th>
+      <th>Números</th>
+      <th>Monto</th>
+      <th>Premio</th>
+      <th>Ganador</th>
+    </tr>
+  </table>
+
+  <button class="btn-limpiar" onclick="limpiarTicket()">Limpiar</button>
+  <button class="btn-eliminar" onclick="eliminarTicket()">Eliminar</button>
+  <button class="btn-regresar" onclick="location.href='principal.html'">Regresar</button>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+import { getDatabase, ref, get, child, remove } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+
+/* FIREBASE */
+const app = initializeApp({
+  apiKey: "TU_API_KEY",
+  databaseURL: "https://bancachupon-default-rtdb.firebaseio.com"
+});
+const db = getDatabase(app);
+
+
+/* USUARIO */
+const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
+document.getElementById("userInfo").innerText =
+  "Usuario: " + (user?.nombre || "Invitado");
+
+/* 🔥 MENU FUNCIONES */
+window.toggleMenu = function(){
+  const menu = document.getElementById("menuDropdown");
+  menu.style.display = menu.style.display === "block" ? "none" : "block";
+};
+
+window.cerrarSesion = function(){
+  localStorage.removeItem("usuarioLogueado");
+  window.location.href = "login.html";
+};
+
+/* FORMATEAR FECHA */
+function formatearFecha(fechaStr){
+  if(!fechaStr) return "-";
+  const f = new Date(fechaStr);
+  return f.toLocaleDateString() + " " + f.toLocaleTimeString();
+}
+
+/* LIMPIAR */
+window.limpiarTicket = function(){
+  numeroTicket.value = "";
+  ticketInfo.style.display="none";
+  detalleTicket.style.display="none";
+
+  tdNumero.textContent="";
+  tdFecha.textContent="";
+  tdSerial.textContent="";
+  tdBanca.textContent="";
+  tdMonto.textContent="";
+
+  document.querySelectorAll("#detalleTicket tr:not(:first-child)").forEach(r=>r.remove());
+
+  window.ticketKeyActual = null;
+  window.ticketActual = null;
+};
+
+/* BUSCAR */
+window.buscarTicket = async function(){
+  const numero = numeroTicket.value.trim();
+
+  if(!numero){
+    alert("Debe ingresar el número de ticket");
+    return;
+  }
+
+  try{
+    const snap = await get(child(ref(db),"ventas"));
+    const data = snap.val() || {};
+
+    let ticket=null;
+
+    for(const k in data){
+      const t = data[k];
+      const num = t.NumeroTicket ?? t.numeroTicket;
+
+      if(String(num) === numero){
+        ticket = t;
+        ticket._key = k;
+        break;
+      }
+    }
+
+    if(!ticket){
+      alert("Ticket no encontrado");
+      limpiarTicket();
+      return;
+    }
+
+    window.ticketActual = ticket;
+
+    tdNumero.textContent = ticket.NumeroTicket ?? ticket.numeroTicket ?? "-";
+    tdFecha.textContent = formatearFecha(ticket.FechaCreacion || ticket.fechaCreacion);
+    tdSerial.textContent = ticket.SerialNumber || ticket.serialNumber || "-";
+    tdBanca.textContent = ticket.NombreUsuario || ticket.nombreUsuario || "-";
+    tdMonto.textContent = ticket.TotalNeto || ticket.totalNeto || "-";
+
+    ticketInfo.style.display="block";
+
+    detalleTicket.style.display="table";
+    document.querySelectorAll("#detalleTicket tr:not(:first-child)").forEach(r=>r.remove());
+
+    const tipos = [
+      ["Quinielas","quinielas"],
+      ["Pales","pales"],
+      ["Tripletas","tripletas"]
+    ];
+
+    tipos.forEach(([nombre,key])=>{
+      const arr = ticket[nombre] || ticket[key];
+
+      if(arr && Array.isArray(arr)){
+        arr.forEach(i=>{
+          const numeros = i.numeros ?? i.Numeros ?? "-";
+          const monto = i.monto ?? i.Monto ?? 0;
+          const premio = i.premio ?? i.Premio ?? 0;
+          const ganador = (i.EsGanador ?? i.esGanador) ? "Sí":"No";
+
+          const tr=document.createElement("tr");
+          tr.innerHTML=`
+            <td>${nombre}</td>
+            <td>${numeros}</td>
+            <td>${monto}</td>
+            <td>${premio}</td>
+            <td>${ganador}</td>
+          `;
+          detalleTicket.appendChild(tr);
+        });
+      }
+    });
+
+    window.ticketKeyActual = ticket._key;
+
+  } catch(e){
+    alert("Error: " + e.message);
+  }
+};
+
+/* ELIMINAR */
+window.eliminarTicket = async function(){
+
+  if(!window.ticketActual){
+    alert("Primero busque un ticket");
+    return;
+  }
+
+  const ticket = window.ticketActual;
+
+  const esGanador = ticket.EsGanador ?? ticket.esGanador;
+  if(esGanador){
+    alert("No se puede eliminar un ticket ganador");
+    return;
+  }
+
+  const fechaStr = ticket.FechaCreacion || ticket.fechaCreacion;
+  const fechaTicket = new Date(fechaStr);
+  const hoy = new Date();
+
+  const mismoDia =
+    fechaTicket.getFullYear() === hoy.getFullYear() &&
+    fechaTicket.getMonth() === hoy.getMonth() &&
+    fechaTicket.getDate() === hoy.getDate();
+
+  if(!mismoDia){
+    alert("No se pueden eliminar tickets de días anteriores");
+    return;
+  }
+
+  if(!confirm("¿Seguro que desea eliminar este ticket?")) return;
+
+  try{
+    await remove(ref(db, "ventas/"+window.ticketKeyActual));
+    alert("Ticket eliminado correctamente");
+    limpiarTicket();
+  } catch(e){
+    alert("Error al eliminar: " + e.message);
+  }
+};
+</script>
+
+</body>
+</html>
