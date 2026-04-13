@@ -182,17 +182,25 @@ let usuariosMap = {}; // Mapa IdUsuario => NombreUsuario
 
 async function cargarUsuarios(){
   const combo = document.getElementById("comboUsuario");
+
   const snap = await get(child(ref(db),"Usuarios"));
   const data = snap.val() || {};
-  combo.innerHTML = "<option value=''>Seleccione Usuario</option>";
+
   usuariosMap = {};
-  
+
+  // 🔥 OPCIÓN "TODOS"
+  combo.innerHTML = "<option value='TODOS'>Todos los usuarios</option>";
+  combo.innerHTML += "<option value=''>Seleccione Usuario</option>";
+
   for(const uid in data){
     const u = data[uid];
+
     // 👑 ADMINISTRADOR VE TODOS, ADM VE SOLO SU ASIGNADO
     if(userData.tipo === "Administrador" || u.Asignado === usuarioLogueado){
+
       combo.innerHTML += `<option value="${u.Id}">${u.NombreUsuario}</option>`;
     }
+
     usuariosMap[u.Id] = u.NombreUsuario;
   }
 }
@@ -200,7 +208,6 @@ async function cargarUsuarios(){
 const comboUsuario = document.getElementById("comboUsuario");
 comboUsuario.addEventListener("change", limpiarCampos);
 cargarUsuarios();
-
 /* 🔹 Validación y placeholders */
 const numeroInput = document.getElementById("numero");
 const tipoJugadaSelect = document.getElementById("tipoJugada");
@@ -239,6 +246,7 @@ numeroInput.addEventListener("input", (e)=>{
 
 /* 🔹 Guardar Límite */
 document.getElementById("guardarBtn").addEventListener("click", async ()=>{
+
   const usuarioId = comboUsuario.value.trim();
   const tipoJugada = tipoJugadaSelect.value;
   const numero = numeroInput.value.trim() || null;
@@ -247,51 +255,154 @@ document.getElementById("guardarBtn").addEventListener("click", async ()=>{
   const statusDiv = document.getElementById("status");
 
   if(!usuarioId){ alert("Seleccione un usuario"); return; }
-  if(!validarNumero(numero, tipoJugada)){ alert("Número ingresado no cumple el formato para " + tipoJugada); return; }
+
+  if(!validarNumero(numero, tipoJugada)){
+    alert("Número ingresado no cumple el formato para " + tipoJugada);
+    return;
+  }
+
+  const snapUsuarios = await get(ref(db, "Usuarios"));
+  const usuarios = snapUsuarios.val() || {};
+
+  // 🔥 CASO "TODOS"
+  if(usuarioId === "TODOS"){
+
+    let contador = 0;
+
+    for(const uid in usuarios){
+
+      const u = usuarios[uid];
+
+      // 🔥 SOLO USUARIOS ASIGNADOS AL LOGUEADO
+      if(u.Asignado !== usuarioLogueado) continue;
+
+      const key = `${u.Id}_${tipoJugada}_${numero || 'NA'}`;
+
+      const data = {
+        Key: key,
+        UsuarioId: u.Id,
+        TipoJugada: tipoJugada,
+        Numero: numero,
+        Limite: limite,
+        Bloqueado: bloqueado,
+        NombreUsuario: u.NombreUsuario,
+        Asignado: u.Asignado
+      };
+
+      await set(ref(db,'LimitesVentas/'+key), data);
+      contador++;
+    }
+
+    statusDiv.textContent = `Límite aplicado a ${contador} usuarios asignados`;
+    statusDiv.style.color = "green";
+
+    limpiarCampos();
+    cargarTablaLimites();
+    return;
+  }
+
+  // 🔥 CASO NORMAL (UNO SOLO)
+  const usuario = Object.values(usuarios).find(
+    u => String(u.Id) === String(usuarioId)
+  );
 
   const key = `${usuarioId}_${tipoJugada}_${numero || 'NA'}`;
-  const data = { Key:key, UsuarioId:usuarioId, TipoJugada:tipoJugada, Numero:numero, Limite:limite, Bloqueado:bloqueado };
+
+  const data = {
+    Key: key,
+    UsuarioId: usuarioId,
+    TipoJugada: tipoJugada,
+    Numero: numero,
+    Limite: limite,
+    Bloqueado: bloqueado,
+    NombreUsuario: usuario ? usuario.NombreUsuario : "",
+    Asignado: usuario ? usuario.Asignado : ""
+  };
 
   try{
     await set(ref(db,'LimitesVentas/'+key), data);
+
     statusDiv.textContent = `Límite guardado para ${tipoJugada} ${numero || ''}`;
     statusDiv.style.color='green';
+
     limpiarCampos();
     cargarTablaLimites();
-  }catch(e){ console.error(e); statusDiv.textContent='Error al guardar límite'; statusDiv.style.color='red'; }
+
+  }catch(e){
+    console.error(e);
+    statusDiv.textContent='Error al guardar límite';
+    statusDiv.style.color='red';
+  }
 });
 
-/* 🔹 Cargar tabla de límites */
+
+// funcion carga limite en la tabla
 async function cargarTablaLimites() {
   const tbody = document.getElementById("tbodyLimites");
   tbody.innerHTML = "";
 
-  const snapshot = await get(ref(db, 'LimitesVentas'));
-  const data = snapshot.val() || {};
+  const userData = JSON.parse(localStorage.getItem("usuarioLogueado"));
+  if (!userData) return;
 
-  for (const key in data) {
-    const limite = data[key];
-    const row = document.createElement("tr");
+  const tipo = (userData.tipo || "").trim();
 
-    row.innerHTML = `
-      <td>${usuariosMap[limite.UsuarioId] || limite.UsuarioId}</td>
-      <td>${limite.TipoJugada}</td>
-      <td>${limite.Numero || ""}</td>
-      <td>${limite.Limite}</td>
-      <td>${limite.Bloqueado ? "Sí" : "No"}</td>
-      <td>
-        <button class="btn-editar" onclick="editarLimite('${key}')">Editar</button>
-        <button class="btn-bloquear" onclick="bloquearLimite('${key}')">
-          ${limite.Bloqueado ? "Desbloquear" : "Bloquear"}
-        </button>
-        <button class="btn-eliminar" onclick="eliminarLimite('${key}')">Eliminar</button>
-      </td>
+  // 🔥 IMPORTANTE: el ADM debe usar el "nombre" real del login
+  const usuarioLogueado = (userData.nombre || "").trim();
+
+  const snapshot = await get(ref(db, "LimitesVentas"));
+  const limites = snapshot.val() || {};
+
+  for (const key in limites) {
+
+    const l = limites[key];
+
+    let mostrar = false;
+
+    // 👑 ADMIN VE TODO
+    if (tipo === "Administrador") {
+      mostrar = true;
+    }
+
+    // 👤 ADM SOLO SUS ASIGNADOS
+    else if (tipo === "ADM") {
+
+      const asignado = (l.Asignado || "").trim();
+
+      // 🔥 DEBUG opcional (puedes quitar luego)
+      console.log("Comparando:", asignado, "vs", usuarioLogueado);
+
+      if (asignado === usuarioLogueado) {
+        mostrar = true;
+      }
+    }
+
+    if (!mostrar) continue;
+
+    tbody.innerHTML += `
+      <tr>
+        <td>${l.NombreUsuario || l.UsuarioId}</td>
+        <td>${l.TipoJugada}</td>
+        <td>${l.Numero || ""}</td>
+        <td>${l.Limite}</td>
+        <td>${l.Bloqueado ? "Sí" : "No"}</td>
+        <td>
+          <button class="btn-editar" onclick="editarLimite('${key}')">Editar</button>
+          <button class="btn-bloquear" onclick="bloquearLimite('${key}')">
+            ${l.Bloqueado ? "Desbloquear" : "Bloquear"}
+          </button>
+          <button class="btn-eliminar" onclick="eliminarLimite('${key}')">Eliminar</button>
+        </td>
+      </tr>
     `;
-
-    tbody.appendChild(row);
   }
 }
-cargarTablaLimites();
+
+async function init(){
+  await cargarUsuarios();     // 👈 primero llena usuariosMap
+  await cargarTablaLimites(); // 👈 luego filtra tabla
+}
+
+init();
 
 /* 🔹 Funciones editar, bloquear y eliminar */
 window.editarLimite = async (key) => {
