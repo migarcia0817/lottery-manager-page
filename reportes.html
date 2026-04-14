@@ -183,8 +183,15 @@ body { margin:0; font-family: Arial, sans-serif; background:#f9f9f9; }
 
 <script>
 /* 🔥 USUARIO */
-const usuarioGuardado = JSON.parse(localStorage.getItem("usuarioLogueado"));
-const usuarioLogueado = usuarioGuardado ? usuarioGuardado.nombre : "Invitado";
+const userData = JSON.parse(localStorage.getItem("usuarioLogueado"));
+
+// 🔥 BLOQUEO TOTAL SI NO HAY SESIÓN
+if(!userData){
+  window.location.href = "login.html";
+}
+
+// ✅ ya seguro existe
+const usuarioLogueado = userData.nombre;
 
 /* 🔥 MENU */
 function toggleMenu(){
