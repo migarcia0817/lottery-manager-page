@@ -180,9 +180,15 @@ function cerrarSesionAuto(){
 
 resetTimer();
 
-const usuarioGuardado = JSON.parse(localStorage.getItem("usuarioLogueado"));
-const usuarioLogueado = usuarioGuardado ? usuarioGuardado.nombre : "Invitado";
-const usuarioAsignado = usuarioGuardado ? usuarioGuardado.nombre : null;
+const userData = JSON.parse(localStorage.getItem("usuarioLogueado"));
+
+// 🔥 BLOQUEO TOTAL SI NO HAY SESIÓN
+if(!userData){
+  window.location.href = "login.html";
+}
+
+// ✅ ya seguro existe
+const usuarioLogueado = userData.nombre;
 
 function actualizarUserInfo(){
   const now = new Date();
