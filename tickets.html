@@ -134,12 +134,37 @@ const app = initializeApp({
   databaseURL: "https://bancachupon-default-rtdb.firebaseio.com"
 });
 const db = getDatabase(app);
+//control de cerrar solo 
+let tiempoInactivo;
+const LIMITE = 10 * 60 * 1000;
 
+function resetTimer(){
+  clearTimeout(tiempoInactivo);
+  tiempoInactivo = setTimeout(cerrarSesionAuto, LIMITE);
+}
+
+function cerrarSesionAuto(){
+  localStorage.removeItem("usuarioLogueado");
+  alert("Sesión cerrada por inactividad");
+  window.location.href = "login.html";
+}
+
+["click","mousemove","keypress","touchstart"].forEach(evt=>{
+  document.addEventListener(evt, resetTimer);
+});
+
+resetTimer();
 
 /* USUARIO */
-const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
-document.getElementById("userInfo").innerText =
-  "Usuario: " + (user?.nombre || "Invitado");
+const userData = JSON.parse(localStorage.getItem("usuarioLogueado"));
+
+// 🔥 BLOQUEO TOTAL SI NO HAY SESIÓN
+if(!userData){
+  window.location.href = "login.html";
+}
+
+// ✅ ya seguro existe
+const usuarioLogueado = userData.nombre;
 
 /* 🔥 MENU FUNCIONES */
 window.toggleMenu = function(){
