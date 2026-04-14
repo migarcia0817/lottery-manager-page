@@ -406,7 +406,6 @@ async function cargarLimitesBarra(usuarioId){
   const snap = await get(ref(db,"LimitesVentas"));
   const data = snap.val() || {};
 
-  // 🔥 defaults
   let limites = {
     Qui: 500,
     Pale: 50,
@@ -417,13 +416,16 @@ async function cargarLimitesBarra(usuarioId){
   for(const k in data){
     const l = data[k];
 
-    // 🔥 FILTRAR POR USUARIO (usar ID correcto)
-    if(usuarioId !== "TODOS" && String(l.UsuarioId) !== String(usuarioId)){
-      continue;
+    // 🔥 SI NO ES DEL USUARIO, IGNORAR
+    if(usuarioId !== "TODOS"){
+      if(String(l.UsuarioId) !== String(usuarioId) &&
+         String(l.NombreUsuario) !== String(usuarioId)){
+        continue;
+      }
     }
 
-    // 🔥 SOLO LIMITES GENERALES (NA)
-    if(l.Numero !== "NA" && l.Numero !== null){
+    // 🔥 SOLO NA (GLOBAL)
+    if(l.Numero !== "NA"){
       continue;
     }
 
@@ -436,7 +438,6 @@ async function cargarLimitesBarra(usuarioId){
     if(tipo === "Sp")   limites.Sp = limite;
   }
 
-  // 🔥 ACTUALIZAR UI
   document.getElementById("limiteQui").textContent = limites.Qui;
   document.getElementById("limitePale").textContent = limites.Pale;
   document.getElementById("limiteTrip").textContent = limites.Trip;
