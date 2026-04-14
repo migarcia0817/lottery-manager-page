@@ -225,8 +225,10 @@ async function cargarUsuarios(){
 // 🔍 buscar ventas (FIX COMPLETO)
 async function buscarVentas(){
 
-  const usuarioNombre = document.getElementById("comboUsuario").value;
-  await cargarLimitesBarra(usuarioNombre);
+  const usuarioId = document.getElementById("comboUsuario").value;
+
+  // 🔥 cargar barra con ID (no nombre)
+  await cargarLimitesBarra(usuarioId);
 
   const fechaSeleccionada = document.getElementById("fechaVentas").value;
 
@@ -257,51 +259,45 @@ async function buscarVentas(){
       acumulado[num] = 0;
     }
 
+    // 🔥 RECORRER VENTAS
     for(const id in ventas){
 
       const v = ventas[id];
 
-      const usuario = v.nombreUsuario || v.NombreUsuario;
+      const usuarioVenta = v.usuarioId || v.UsuarioId || v.nombreUsuario || v.NombreUsuario;
       const fechaRaw = v.fechaCreacion || v.FechaCreacion;
 
-      if(!usuario || !fechaRaw) continue;
+      if(!usuarioVenta || !fechaRaw) continue;
 
       const fecha = fechaRaw.split("T")[0];
 
-      if(usuarioNombre && usuario !== usuarioNombre) continue;
+      // 🔥 si NO es TODOS, filtrar
+      if(usuarioId !== "TODOS" && String(usuarioVenta) !== String(usuarioId)) continue;
       if(fecha !== fechaSeleccionada) continue;
 
-      // QUINIELA
       if(mostrarQuiniela){
-        const quinielas = v.quinielas || [];
-        quinielas.forEach(q=>{
+        (v.quinielas || []).forEach(q=>{
           let nums = String(q.numeros).padStart(2,"0");
           acumulado[nums] += Number(q.montoDecimal || 0);
         });
       }
 
-      // PALE
       if(mostrarPale){
-        const pales = v.pales || [];
-        pales.forEach(p=>{
+        (v.pales || []).forEach(p=>{
           let nums = String(p.numeros);
           acumulado[nums] += Number(p.montoDecimal || 0);
         });
       }
 
-      // TRIPLETA
       if(mostrarTripleta){
-        const tripletas = v.tripletas || [];
-        tripletas.forEach(t=>{
+        (v.tripletas || []).forEach(t=>{
           let nums = String(t.numeros);
           acumulado[nums] += Number(t.montoDecimal || 0);
         });
       }
 
-      // SUPER PALE
       if(mostrarSuperPale){
-        const superPales = v.superPales || [];
-        superPales.forEach(s=>{
+        (v.superPales || []).forEach(s=>{
           let nums = String(s.numeros);
           acumulado[nums] += Number(s.montoDecimal || 0);
         });
@@ -310,7 +306,6 @@ async function buscarVentas(){
 
     tbody.innerHTML = "";
 
-    // 🔥 TIPOS DEFAULT
     const defaults = {
       Qui: 500,
       Pale: 50,
@@ -318,56 +313,64 @@ async function buscarVentas(){
       Sp: 30
     };
 
+    // 🔥 RECORRER NÚMEROS
     for(const num in acumulado){
 
-  const vendido = acumulado[num];
+      const vendido = acumulado[num];
 
-  // 🔥 detectar tipo de jugada (según qué checkbox esté activo)
-  let tipo = "Qui";
+      // 🔥 detectar tipo activo
+      let tipo = "Qui";
+      if(mostrarPale) tipo = "Pale";
+      else if(mostrarTripleta) tipo = "Trip";
+      else if(mostrarSuperPale) tipo = "Sp";
 
-  if(document.getElementById("chkPale").checked) tipo = "Pale";
-  else if(document.getElementById("chkTripleta").checked) tipo = "Trip";
-  else if(document.getElementById("chkSuperPale").checked) tipo = "Sp";
+      let limite = null;
 
-  // 🔥 buscar límite REAL en Firebase (sin número, solo tipo)
-  let limite = null;
+      // 🔥 1. BUSCAR LIMITE POR NUMERO
+      for(const k in limitesDB){
+        const l = limitesDB[k];
 
-  for(const k in limitesDB){
-    const l = limitesDB[k];
+        if(String(l.UsuarioId) !== String(usuarioId)) continue;
+        if(l.TipoJugada !== tipo) continue;
 
-    if(l.NombreUsuario !== usuarioNombre) continue;
-    if(l.Numero) continue; // 🔥 ignorar límites por número
+        if(String(l.Numero) === String(num)){
+          limite = Number(l.Limite);
+          break;
+        }
+      }
 
-    if(l.TipoJugada === tipo){
-      limite = Number(l.Limite);
-      break;
+      // 🔥 2. SI NO HAY → BUSCAR GENERAL (NA)
+      if(limite === null){
+        for(const k in limitesDB){
+          const l = limitesDB[k];
+
+          if(String(l.UsuarioId) !== String(usuarioId)) continue;
+          if(l.TipoJugada !== tipo) continue;
+
+          if(l.Numero === "NA" || l.Numero === null){
+            limite = Number(l.Limite);
+            break;
+          }
+        }
+      }
+
+      // 🔥 3. SI NO HAY → DEFAULT
+      if(limite === null){
+        limite = defaults[tipo] || 500;
+      }
+
+      const disponible = limite - vendido;
+
+      if(vendido > 0){
+        tbody.innerHTML += `
+          <tr>
+            <td>${num}</td>
+            <td>${vendido}</td>
+            <td>${disponible}</td>
+          </tr>
+        `;
+      }
     }
-  }
-
-  // 🔥 si no existe en Firebase, usar default correcto
-  if(!limite){
-    const defaults = {
-      Qui: 500,
-      Pale: 50,
-      Trip: 25,
-      Sp: 30
-    };
-
-    limite = defaults[tipo] || 500;
-  }
-
-  const disponible = limite - vendido;
-
-  if(vendido > 0){
-    tbody.innerHTML += `
-      <tr>
-        <td>${num}</td>
-        <td>${vendido}</td>
-        <td>${disponible}</td>
-      </tr>
-    `;
-  }
-}
 
   }catch(e){
     alert("Error: " + e.message);
@@ -398,12 +401,12 @@ window.onload = async ()=>{
 };
 
 //funcion carga datos de limite 
-async function cargarLimitesBarra(usuarioNombre){
+async function cargarLimitesBarra(usuarioId){
 
   const snap = await get(ref(db,"LimitesVentas"));
   const data = snap.val() || {};
 
-  // 🔥 límites por tipo (NO por número)
+  // 🔥 defaults
   let limites = {
     Qui: 500,
     Pale: 50,
@@ -414,13 +417,13 @@ async function cargarLimitesBarra(usuarioNombre){
   for(const k in data){
     const l = data[k];
 
-    // 🔥 filtrar por usuario si aplica
-    if(usuarioNombre && l.NombreUsuario !== usuarioNombre){
+    // 🔥 FILTRAR POR USUARIO (usar ID correcto)
+    if(usuarioId !== "TODOS" && String(l.UsuarioId) !== String(usuarioId)){
       continue;
     }
 
-    // 🔥 ignorar límites por número (solo globales)
-    if(l.Numero){
+    // 🔥 SOLO LIMITES GENERALES (NA)
+    if(l.Numero !== "NA" && l.Numero !== null){
       continue;
     }
 
@@ -433,7 +436,7 @@ async function cargarLimitesBarra(usuarioNombre){
     if(tipo === "Sp")   limites.Sp = limite;
   }
 
-  // 🔥 actualizar UI
+  // 🔥 ACTUALIZAR UI
   document.getElementById("limiteQui").textContent = limites.Qui;
   document.getElementById("limitePale").textContent = limites.Pale;
   document.getElementById("limiteTrip").textContent = limites.Trip;
@@ -462,6 +465,12 @@ window.abrirModalLimite = async function(){
   const tipo = userData?.tipo || "";
   const usuarioActual = userData?.nombre || "";
 
+  // 🔥 buscar usuario actual completo (para obtener su ID)
+  const usuarioObj = Object.values(usuarios)
+    .find(u => u.NombreUsuario === usuarioActual);
+
+  const usuarioIdActual = usuarioObj?.Id;
+
   // 👑 ADMIN VE TODOS
   if(tipo === "Administrador"){
 
@@ -478,11 +487,14 @@ window.abrirModalLimite = async function(){
   } 
   else {
 
-    // 👤 ADM SOLO ASIGNADOS
-    select.innerHTML += `<option value="${usuarioActual}">
-      ${usuarioActual}
-    </option>`;
+    // 👤 USUARIO ACTUAL (con ID correcto)
+    if(usuarioIdActual){
+      select.innerHTML += `<option value="${usuarioIdActual}">
+        ${usuarioActual}
+      </option>`;
+    }
 
+    // 👥 asignados
     for(const id in usuarios){
       const u = usuarios[id];
 
