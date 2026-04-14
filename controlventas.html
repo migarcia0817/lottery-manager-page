@@ -155,7 +155,14 @@ resetTimer();
 
 // 👤 usuario
 const userData = JSON.parse(localStorage.getItem("usuarioLogueado"));
-const usuarioLogueado = userData ? userData.nombre : "Invitado";
+
+// 🔥 BLOQUEO TOTAL SI NO HAY SESIÓN
+if(!userData){
+  window.location.href = "login.html";
+}
+
+// ✅ ya seguro existe
+const usuarioLogueado = userData.nombre;
 
 // 🍔 menú
 window.toggleMenu = function(){
