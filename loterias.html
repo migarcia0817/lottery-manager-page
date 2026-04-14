@@ -179,15 +179,8 @@ function cerrarSesionAuto(){
 resetTimer();
 
 /* 🔥 USUARIO */
-const userData = JSON.parse(localStorage.getItem("usuarioLogueado"));
-
-// 🔥 BLOQUEO TOTAL SI NO HAY SESIÓN
-if(!userData){
-  window.location.href = "login.html";
-}
-
-// ✅ ya seguro existe
-const usuarioLogueado = userData.nombre;
+const usuarioGuardado = JSON.parse(localStorage.getItem("usuarioLogueado"));
+const usuarioLogueado = usuarioGuardado ? usuarioGuardado.nombre : "Invitado";
 
 /* 🔥 MENU */
 window.toggleMenu = () => {
