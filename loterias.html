@@ -158,29 +158,51 @@ const app = initializeApp({
 const db = getDatabase(app);
 
 //control de cerrar solo 
+// 🔒 control de inactividad
 let tiempoInactivo;
 const LIMITE = 10 * 60 * 1000;
 
+// 🔐 VALIDAR SESIÓN (ANTES DE TODO)
+const usuarioGuardado = JSON.parse(localStorage.getItem("usuarioLogueado"));
+
+if(!usuarioGuardado){
+  window.location.replace("login.html");
+}
+
+// ✅ variables seguras
+const usuarioLogueado = usuarioGuardado.nombre;
+const tipoUsuario = usuarioGuardado.tipo;
+const asignado = usuarioGuardado.asignado;
+
+// 🔁 reset timer
 function resetTimer(){
   clearTimeout(tiempoInactivo);
   tiempoInactivo = setTimeout(cerrarSesionAuto, LIMITE);
 }
 
+// 🔥 cerrar sesión automático
 function cerrarSesionAuto(){
   localStorage.removeItem("usuarioLogueado");
   alert("Sesión cerrada por inactividad");
-  window.location.href = "login.html";
+
+  // 🔥 NO permite volver atrás
+  window.location.replace("login.html");
 }
 
+// 🎯 eventos de actividad
 ["click","mousemove","keypress","touchstart"].forEach(evt=>{
   document.addEventListener(evt, resetTimer);
 });
 
+// 🚀 iniciar control
 resetTimer();
 
-/* 🔥 USUARIO */
-const usuarioGuardado = JSON.parse(localStorage.getItem("usuarioLogueado"));
-const usuarioLogueado = usuarioGuardado ? usuarioGuardado.nombre : "Invitado";
+// 🔥 cerrar sesión si borran localStorage en otra pestaña
+window.addEventListener("storage", function(e){
+  if(e.key === "usuarioLogueado" && !e.newValue){
+    window.location.replace("login.html");
+  }
+});
 
 /* 🔥 MENU */
 window.toggleMenu = () => {
