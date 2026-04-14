@@ -189,45 +189,45 @@ async function cargarUsuarios(){
   const tipo = userData?.tipo || "";
   const usuarioActual = userData?.nombre || "";
 
-  // 👑 ADMINISTRADOR VE TODOS
+  // 👑 ADMINISTRADOR
   if(tipo === "Administrador"){
 
-    combo.innerHTML += `<option value="">Todos</option>`;
+    combo.innerHTML += `<option value="TODOS_SISTEMA">TODOS (Sistema)</option>`;
 
     for(const uid in data){
       const u = data[uid];
 
-      combo.innerHTML += `<option value="${u.NombreUsuario}">
-        ${u.NombreUsuario}
-      </option>`;
-    }
-
-  } 
-  else {
-
-    // 👤 DEMÁS USUARIOS SOLO ASIGNADOS
-    combo.innerHTML += `<option value="${usuarioActual}">
-      ${usuarioActual}
-    </option>`;
-
-    for(const uid in data){
-      const u = data[uid];
-
-      if(u.Asignado === usuarioActual){
-        combo.innerHTML += `<option value="${u.NombreUsuario}">
+      combo.innerHTML += `
+        <option value="${u.Id}">
           ${u.NombreUsuario}
         </option>`;
-      }
+    }
+
+    return;
+  }
+
+  // 👤 ADM
+  combo.innerHTML += `<option value="TODOS_GRUPO">TODOS (Mi grupo)</option>`;
+
+  for(const uid in data){
+    const u = data[uid];
+
+    if(u.Asignado === usuarioActual){
+      combo.innerHTML += `
+        <option value="${u.Id}">
+          ${u.NombreUsuario}
+        </option>`;
     }
   }
 }
 
 // 🔍 buscar ventas (FIX COMPLETO)
+
 async function buscarVentas(){
 
   const usuarioId = document.getElementById("comboUsuario").value;
 
-  // 🔥 cargar barra con ID (no nombre)
+  // 🔥 ACTUALIZA BARRA SIEMPRE
   await cargarLimitesBarra(usuarioId);
 
   const fechaSeleccionada = document.getElementById("fechaVentas").value;
@@ -255,70 +255,60 @@ async function buscarVentas(){
 
     let acumulado = {};
     for(let i=0;i<100;i++){
-      let num = i.toString().padStart(2,"0");
-      acumulado[num] = 0;
+      acumulado[i.toString().padStart(2,"0")] = 0;
     }
 
-    // 🔥 RECORRER VENTAS
     for(const id in ventas){
 
       const v = ventas[id];
 
-      const usuarioVenta = v.usuarioId || v.UsuarioId || v.nombreUsuario || v.NombreUsuario;
+      const usuarioVenta = v.usuarioId || v.UsuarioId;
       const fechaRaw = v.fechaCreacion || v.FechaCreacion;
 
       if(!usuarioVenta || !fechaRaw) continue;
 
       const fecha = fechaRaw.split("T")[0];
 
-      // 🔥 si NO es TODOS, filtrar
       if(usuarioId !== "TODOS" && String(usuarioVenta) !== String(usuarioId)) continue;
       if(fecha !== fechaSeleccionada) continue;
 
       if(mostrarQuiniela){
         (v.quinielas || []).forEach(q=>{
-          let nums = String(q.numeros).padStart(2,"0");
-          acumulado[nums] += Number(q.montoDecimal || 0);
+          const num = String(q.numeros).padStart(2,"0");
+          acumulado[num] += Number(q.montoDecimal || 0);
         });
       }
 
       if(mostrarPale){
         (v.pales || []).forEach(p=>{
-          let nums = String(p.numeros);
-          acumulado[nums] += Number(p.montoDecimal || 0);
+          const num = String(p.numeros).padStart(2,"0");
+          acumulado[num] += Number(p.montoDecimal || 0);
         });
       }
 
       if(mostrarTripleta){
         (v.tripletas || []).forEach(t=>{
-          let nums = String(t.numeros);
-          acumulado[nums] += Number(t.montoDecimal || 0);
+          const num = String(t.numeros).padStart(2,"0");
+          acumulado[num] += Number(t.montoDecimal || 0);
         });
       }
 
       if(mostrarSuperPale){
         (v.superPales || []).forEach(s=>{
-          let nums = String(s.numeros);
-          acumulado[nums] += Number(s.montoDecimal || 0);
+          const num = String(s.numeros).padStart(2,"0");
+          acumulado[num] += Number(s.montoDecimal || 0);
         });
       }
     }
 
     tbody.innerHTML = "";
 
-    const defaults = {
-      Qui: 500,
-      Pale: 50,
-      Trip: 25,
-      Sp: 30
-    };
+    const defaults = { Qui:500, Pale:50, Trip:25, Sp:30 };
 
-    // 🔥 RECORRER NÚMEROS
     for(const num in acumulado){
 
       const vendido = acumulado[num];
 
-      // 🔥 detectar tipo activo
       let tipo = "Qui";
       if(mostrarPale) tipo = "Pale";
       else if(mostrarTripleta) tipo = "Trip";
@@ -326,7 +316,7 @@ async function buscarVentas(){
 
       let limite = null;
 
-      // 🔥 1. BUSCAR LIMITE POR NUMERO
+      // 🔥 BUSCAR POR NUMERO
       for(const k in limitesDB){
         const l = limitesDB[k];
 
@@ -339,7 +329,7 @@ async function buscarVentas(){
         }
       }
 
-      // 🔥 2. SI NO HAY → BUSCAR GENERAL (NA)
+      // 🔥 SI NO → NA
       if(limite === null){
         for(const k in limitesDB){
           const l = limitesDB[k];
@@ -347,16 +337,15 @@ async function buscarVentas(){
           if(String(l.UsuarioId) !== String(usuarioId)) continue;
           if(l.TipoJugada !== tipo) continue;
 
-          if(l.Numero === "NA" || l.Numero === null){
+          if(l.Numero === "NA"){
             limite = Number(l.Limite);
             break;
           }
         }
       }
 
-      // 🔥 3. SI NO HAY → DEFAULT
       if(limite === null){
-        limite = defaults[tipo] || 500;
+        limite = defaults[tipo];
       }
 
       const disponible = limite - vendido;
@@ -416,26 +405,21 @@ async function cargarLimitesBarra(usuarioId){
   for(const k in data){
     const l = data[k];
 
-    // 🔥 SI NO ES DEL USUARIO, IGNORAR
+    // 🔥 TODOS = no filtra usuario
     if(usuarioId !== "TODOS"){
-      if(String(l.UsuarioId) !== String(usuarioId) &&
-         String(l.NombreUsuario) !== String(usuarioId)){
-        continue;
-      }
+      if(String(l.UsuarioId) !== String(usuarioId)) continue;
     }
 
-    // 🔥 SOLO NA (GLOBAL)
-    if(l.Numero !== "NA"){
-      continue;
-    }
+    // 🔥 SOLO LÍMITES GENERALES (NA)
+    if(String(l.Numero) !== "NA") continue;
 
     const tipo = l.TipoJugada;
-    const limite = Number(l.Limite);
+    const valor = Number(l.Limite);
 
-    if(tipo === "Qui")  limites.Qui = limite;
-    if(tipo === "Pale") limites.Pale = limite;
-    if(tipo === "Trip") limites.Trip = limite;
-    if(tipo === "Sp")   limites.Sp = limite;
+    if(tipo === "Qui") limites.Qui = valor;
+    if(tipo === "Pale") limites.Pale = valor;
+    if(tipo === "Trip") limites.Trip = valor;
+    if(tipo === "Sp") limites.Sp = valor;
   }
 
   document.getElementById("limiteQui").textContent = limites.Qui;
@@ -443,7 +427,6 @@ async function cargarLimitesBarra(usuarioId){
   document.getElementById("limiteTrip").textContent = limites.Trip;
   document.getElementById("limiteSp").textContent = limites.Sp;
 }
-
 // 🔥 cerrar modal
 window.cerrarModalLimite = function(){
   document.getElementById("modalLimite").style.display = "none";
@@ -466,16 +449,10 @@ window.abrirModalLimite = async function(){
   const tipo = userData?.tipo || "";
   const usuarioActual = userData?.nombre || "";
 
-  // 🔥 buscar usuario actual completo (para obtener su ID)
-  const usuarioObj = Object.values(usuarios)
-    .find(u => u.NombreUsuario === usuarioActual);
-
-  const usuarioIdActual = usuarioObj?.Id;
-
-  // 👑 ADMIN VE TODOS
+  // 👑 ADMINISTRADOR
   if(tipo === "Administrador"){
 
-    select.innerHTML += `<option value="TODOS">TODOS</option>`;
+    select.innerHTML += `<option value="TODOS_SISTEMA">TODOS (Sistema)</option>`;
 
     for(const id in usuarios){
       const u = usuarios[id];
@@ -485,25 +462,19 @@ window.abrirModalLimite = async function(){
       </option>`;
     }
 
-  } 
-  else {
+    return;
+  }
 
-    // 👤 USUARIO ACTUAL (con ID correcto)
-    if(usuarioIdActual){
-      select.innerHTML += `<option value="${usuarioIdActual}">
-        ${usuarioActual}
+  // 👤 ADM
+  select.innerHTML += `<option value="TODOS_GRUPO">TODOS (Mi grupo)</option>`;
+
+  for(const id in usuarios){
+    const u = usuarios[id];
+
+    if(u.Asignado === usuarioActual){
+      select.innerHTML += `<option value="${u.Id}">
+        ${u.NombreUsuario}
       </option>`;
-    }
-
-    // 👥 asignados
-    for(const id in usuarios){
-      const u = usuarios[id];
-
-      if(u.Asignado === usuarioActual){
-        select.innerHTML += `<option value="${u.Id}">
-          ${u.NombreUsuario}
-        </option>`;
-      }
     }
   }
 }
@@ -514,25 +485,46 @@ window.guardarLimiteModal = async function(){
   const usuarioId = document.getElementById("modalUsuario").value;
   const tipo = document.getElementById("modalTipo").value;
   const limiteStr = document.getElementById("modalLimiteInput").value;
-//alert("VALOR QUE LLEGA: " + limiteStr);
 
-const limite = parseInt(limiteStr, 10);
+  const limite = parseInt(limiteStr, 10);
 
-if (!limiteStr || isNaN(limite) || limite <= 0) {
-  alert("Ingrese un límite válido");
-  return;
-}
+  if (!limiteStr || isNaN(limite) || limite <= 0) {
+    alert("Ingrese un límite válido");
+    return;
+  }
 
   if(!usuarioId){ 
     alert("Seleccione usuario"); 
     return; 
   }
 
-
   const snap = await get(ref(db,"Usuarios"));
   const usuarios = snap.val() || {};
 
-  if(usuarioId === "TODOS"){
+  // 👑 ADMIN → TODOS SISTEMA
+  if(usuarioId === "TODOS_SISTEMA"){
+
+    for(const uid in usuarios){
+      const u = usuarios[uid];
+
+      const key = `${u.Id}_${tipo}_NA`;
+
+      await set(ref(db,'LimitesVentas/'+key),{
+        Key:key,
+        UsuarioId:u.Id,
+        TipoJugada:tipo,
+        Numero:"NA",
+        Limite:limite,
+        Bloqueado:false,
+        NombreUsuario:u.NombreUsuario,
+        Asignado:u.Asignado
+      });
+    }
+
+  }
+
+  // 👤 ADM → SOLO GRUPO ASIGNADO
+  else if(usuarioId === "TODOS_GRUPO"){
 
     for(const uid in usuarios){
       const u = usuarios[uid];
@@ -553,9 +545,13 @@ if (!limiteStr || isNaN(limite) || limite <= 0) {
       });
     }
 
-  } else {
+  }
 
-    const u = Object.values(usuarios).find(x=>String(x.Id)===usuarioId);
+  // 👤 INDIVIDUAL
+  else {
+
+    const u = Object.values(usuarios)
+      .find(x => String(x.Id) === String(usuarioId));
 
     const key = `${usuarioId}_${tipo}_NA`;
 
@@ -574,6 +570,8 @@ if (!limiteStr || isNaN(limite) || limite <= 0) {
   cerrarModalLimite();
   alert("Límite guardado correctamente ✅");
 };
+
+
 </script>
 
 </body>
