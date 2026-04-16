@@ -1,22 +1,18 @@
 // seguridad.js
 (function() {
     const userData = JSON.parse(localStorage.getItem("usuarioLogueado"));
+    const path = window.location.pathname.toLowerCase();
     
-    // 1. Obtener el nombre del archivo de forma limpia
-    const url = window.location.pathname;
-    let paginaActual = url.substring(url.lastIndexOf('/') + 1).toLowerCase();
+    // 1. Detectar la página de forma flexible
+    // Esto captura "principal.html", "/principal", "/principal/" etc.
+    const urlLimpia = path.split('/').pop();
 
-    // Si la página está vacía (acceso a la raíz /), asumimos que es index.html
-    if (paginaActual === "") {
-        paginaActual = "index.html";
-    }
-
-    // 2. EXCEPCIONES: No bloquear el login (index.html o login.html)
-    if (paginaActual === "index.html" || paginaActual === "login.html") {
+    // 2. EXCEPCIONES: No bloquear el Login
+    if (urlLimpia === "index.html" || urlLimpia === "login.html" || urlLimpia === "" || path === "/") {
         return; 
     }
 
-    // 3. BLOQUEO SI NO HAY SESIÓN (Para el resto de las páginas)
+    // 3. BLOQUEO SI NO HAY SESIÓN
     if (!userData) {
         window.location.href = "index.html";
         return;
@@ -24,24 +20,27 @@
 
     const tipoUsuario = userData.tipo || "";
 
-    // 4. PERMISOS PARA EL SUPERVISOR
+    // 4. VALIDACIÓN PARA SUPERVISOR
     if (tipoUsuario === "Supervisor") {
         const paginasPermitidas = [
-            "principal.html",
-            "reportes.html",
-            "reporteventas.html",
-            "listajugada.html",
-            "reportegeneral.html",
-            "reporteticket.html",
-            "ticket-pagado.html",
-            "monitor.html",
-            "masvendido.html"
+            "principal",
+            "reportes",
+            "reporteventas",
+            "listajugada",
+            "reportegeneral",
+            "reporteticket",
+            "ticket-pagado",
+            "monitor",
+            "masvendido"
         ];
 
-        // Verificamos si tiene permiso
-        const esPermitida = paginasPermitidas.some(p => paginaActual === p.toLowerCase());
+        // Verificamos si alguna palabra permitida está en la URL actual
+        const esPermitida = paginasPermitidas.some(p => path.includes(p));
 
         if (!esPermitida) {
+            // Si realmente no tiene permiso, lo mandamos a reportes
+            // Usamos un alert solo para saber si falló
+            console.warn("Bloqueado en: " + path);
             window.location.href = "reportes.html";
             return;
         }
