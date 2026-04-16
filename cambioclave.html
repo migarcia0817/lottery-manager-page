@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>LOTTERY SYSTEMS - Cambios y Bloqueo</title>
+
+<script src="seguridad.js"></script>
+<link rel="icon" type="image/png" href="favicon.png">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body { margin:0; font-family: Arial, sans-serif; background:#f9f9f9; }
+
+.topbar { background:#512BD4; color:white; display:flex; justify-content:space-between; padding:10px 20px; }
+
+.logo-section { display:flex; align-items:center; }
+.logo-section img { height:40px; margin-right:10px; }
+
+.hamburger { font-size:26px; cursor:pointer; }
+
+.menu-dropdown {
+  position: absolute; 
+  top: 60px; 
+  right: 20px; 
+  background: white;
+  display: none; 
+  flex-direction: column; 
+  min-width: 180px;
+  box-shadow: 0px 8px 16px rgba(0,0,0,0.2);
+  border-radius: 4px;
+  z-index: 1000;
+  padding: 10px 0; /* Espacio interno arriba y abajo */
+}
+
+/* Estilo para los enlaces de texto */
+.menu-dropdown a {
+  padding: 6px 12px;
+  text-decoration: none;
+  color: #333;
+  font-size: 14px;
+  font-weight:bold;
+  display: block;
+  transition: background 0.2s;
+}
+
+/* Efecto al pasar el mouse */
+.menu-dropdown a:hover {
+  background: #f1f1f1;
+  color: #512BD4;
+}
+
+/* Línea divisoria */
+.menu-dropdown hr {
+  border: 0;
+  border-top: 1px solid #eee;
+  margin: 5px 0;
+}
+
+.menu-dropdown.show { display: flex; }
+
+.user-info { background:#e0d4ff; padding:5px 20px; text-align:right; }
+
+.titulo-bar {
+  width:95%; margin:20px auto; padding:10px;
+  background:#512BD4; color:white; text-align:center;
+}
+
+/* layout */
+.form-container{
+  max-width:1200px;
+  margin:30px auto;
+  display:flex;
+  gap:20px;
+}
+
+.bloque{
+  background:white;
+  padding:20px;
+  border-radius:8px;
+  box-shadow:0 0 10px rgba(0,0,0,0.1);
+}
+
+.pequeno{flex:1;}
+.grande{flex:2;}
+
+select{
+  width:100%;
+  padding:8px;
+  margin-top:10px;
+  border-radius:5px;
+}
+
+input{
+  width:92%;
+  padding:8px;
+  margin-top:10px;
+  border-radius:5px;
+}
+
+button{
+  width:100%;
+  margin-top:10px;
+  padding:10px;
+  background:#512BD4;
+  color:white;
+  border:none;
+  border-radius:5px;
+}
+
+/* lista de usauario grupo*/
+ul{
+  list-style:none;
+  padding:0;
+  margin:0;
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+}
+
+/* cada usuario en columna de 3 */
+li{
+  width:32%;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  background:#f2f2f2;
+  padding:6px 10px;
+  border-radius:5px;
+  box-sizing:border-box;
+}
+
+/* botón eliminar */
+li button{
+  width:22px;
+  height:22px;
+  border-radius:50%;
+  background:red;
+  color:white;
+  border:none;
+  cursor:pointer;
+}
+
+/* responsive */
+@media (max-width:900px){
+  li{ width:48%; }
+}
+
+@media (max-width:600px){
+  li{ width:100%; }
+}
+
+/* tabla */
+table{
+  width:95%;
+  margin:20px auto;
+  background:white;
+  border-collapse:collapse;
+}
+
+td,th{
+  border:1px solid #ccc;
+  padding:8px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="topbar">
+  <div class="logo-section">
+    <img src="lote.png">
+    <span style="font-size:18px; font-weight: bold;">Lottery</span>
+  </div>
+  <div class="hamburger" onclick="toggleMenu()">☰</div>
+
+  <div id="menuDropdown" class="menu-dropdown">
+  <a href="principal.html">Principal</a>
+  <a href="loterias.html">Loterías</a>
+  <a href="bancas.html">Banca</a>
+  <a href="tickets.html">Ticket</a>
+  <a href="cambioclave.html">Usuarios</a>
+  <a href="javascript:void(0)" onclick="localStorage.removeItem('usuarioLogueado'); window.location.href='index.html';">
+    Cerrar Sesión
+  </a>
+</div>
+</div> <!-- Solo un div de cierre aquí -->
+
+<div class="user-info" id="userInfo"></div>
+<div class="titulo-bar">Gestión de Usuarios</div>
+
+<div class="form-container">
+
+<!-- CLAVE -->
+<div class="bloque pequeno">
+<h3>Clave</h3>
+<select id="usuariosClave"></select>
+<input id="nuevaClave" placeholder="Nueva">
+<button onclick="guardarClave()">Guardar</button>
+</div>
+
+<!-- BLOQUEO -->
+<div class="bloque pequeno">
+<h3>Bloqueo</h3>
+<select id="usuariosBloqueo"></select>
+<button onclick="bloquearUsuario()">OK</button>
+</div>
+
+<!-- GRUPOS -->
+<div class="bloque grande">
+<h3>Crear Grupo</h3>
+
+<select id="usuariosGrupo"></select>
+<button onclick="agregarUsuarioGrupo()">Agregar</button>
+
+<select id="supervisorGrupo"></select>
+<p>Supervisor</p>
+
+<ul id="listaGrupo"></ul>
+
+<button onclick="guardarGrupo()">Crear Grupo</button>
+
+</div>
+
+</div>
+
+<!-- TABLA -->
+<table>
+<thead>
+<tr>
+<th>Grupo</th>
+<th>Supervisor</th>
+<th>Usuarios</th>
+</tr>
+</thead>
+<tbody id="tabla"></tbody>
+</table>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+import { getDatabase, ref, get, child, update } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+
+const app = initializeApp({
+  apiKey:"TU_API_KEY",
+  databaseURL:"https://bancachupon-default-rtdb.firebaseio.com"
+});
+
+const db = getDatabase(app);
+
+let data = {};
+let lista = [];
+
+const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
+
+window.toggleMenu = () => {
+  const menu = document.getElementById("menuDropdown");
+  if (menu.classList.contains("show")) {
+    menu.classList.remove("show");
+  } else {
+    menu.classList.add("show");
+  }
+};
+
+// Opcional: Cerrar el menú si haces clic fuera de él
+document.addEventListener("click", (event) => {
+  const menu = document.getElementById("menuDropdown");
+  const burger = document.querySelector(".hamburger");
+  
+  if (!menu.contains(event.target) && event.target !== burger) {
+    menu.classList.remove("show");
+  }
+});
+
+setInterval(() => {
+  userInfo.innerHTML = `${user.nombre} - ${new Date().toLocaleString()}`;
+}, 1000);
+
+/* =========================
+   CARGAR USUARIOS (FIX CLAVE)
+========================= */
+async function cargarUsuarios() {
+  const snap = await get(child(ref(db), "Usuarios"));
+  data = snap.val() || {};
+
+  usuariosClave.innerHTML = "";
+  usuariosBloqueo.innerHTML = "";
+  usuariosGrupo.innerHTML = "";
+  supervisorGrupo.innerHTML = "";
+
+  for (const key in data) {
+    const u = data[key];
+
+    const idReal = u.Id; // 🔥 ESTE ES EL BUENO (980)
+
+    if (user.tipo === "Administrador" || u.Asignado === user.nombre) {
+      usuariosClave.add(new Option(u.NombreUsuario, idReal));
+      usuariosBloqueo.add(new Option(u.NombreUsuario, idReal));
+      usuariosGrupo.add(new Option(u.NombreUsuario, idReal));
+    }
+
+    if (u.TipoUsuario === "Supervisor") {
+      supervisorGrupo.add(new Option(u.NombreUsuario, idReal));
+    }
+  }
+
+  usuariosGrupo.add(new Option("🔥 TODOS", "TODOS"));
+}
+
+/* =========================
+   AGREGAR USUARIO
+========================= */
+window.agregarUsuarioGrupo = () => {
+  const id = usuariosGrupo.value;
+
+ // alert("VALUE seleccionado (DEBE SER ID NUMÉRICO): " + id);
+
+  if (id === "TODOS") {
+    lista = Object.values(data).map(u => u.Id);
+    render();
+    return;
+  }
+
+  if (!lista.includes(id)) lista.push(id);
+
+ // alert("LISTA IDS: " + JSON.stringify(lista));
+  render();
+};
+
+/* =========================
+   QUITAR
+========================= */
+window.quitarUsuario = (id) => {
+  lista = lista.filter(x => x !== id);
+  render();
+};
+
+/* =========================
+   RENDER (FIX IMPORTANTE)
+========================= */
+function render() {
+  listaGrupo.innerHTML = "";
+
+  lista.forEach(id => {
+    const u = Object.values(data).find(x => String(x.Id) === String(id));
+
+    const li = document.createElement("li");
+
+    li.innerHTML = `
+      <span>${u?.NombreUsuario || "SIN NOMBRE"} (ID: ${id})</span>
+      <button onclick="quitarUsuario('${id}')">×</button>
+    `;
+
+    listaGrupo.appendChild(li);
+  });
+}
+
+/* =========================
+   GUARDAR GRUPO (OK)
+========================= */
+window.guardarGrupo = async () => {
+  const sup = supervisorGrupo.value;
+  const name = "Grupo_" + Date.now();
+
+  alert("🔥 GUARDANDO GRUPO");
+  alert("SUPERVISOR ID: " + sup);
+  alert("USUARIOS IDS: " + JSON.stringify(lista));
+
+  await update(ref(db, "Grupos/" + name), {
+    nombre: name,
+    usuarios: lista,
+    supervisor: sup
+  });
+
+  for (const id of lista) {
+    const key = Object.keys(data).find(k => String(data[k].Id) === String(id));
+
+    if (key) {
+      await update(ref(db, "Usuarios/" + key), {
+        Grupo: name,
+        GrupoId: name
+      });
+    }
+  }
+
+  const supKey = Object.keys(data).find(k => String(data[k].Id) === String(sup));
+
+  if (supKey) {
+    await update(ref(db, "Usuarios/" + supKey), {
+      Grupo: name,
+      GrupoId: name
+    });
+  }
+
+  alert("✅ Grupo creado correctamente");
+
+  lista = [];
+  render();
+  loadGrupos();
+};
+
+/* =========================
+   LOAD GRUPOS
+========================= */
+async function loadGrupos() {
+  const snap = await get(ref(db, "Grupos"));
+  const g = snap.val() || {};
+
+  tabla.innerHTML = "";
+
+  for (const k in g) {
+    const x = g[k];
+
+    const users = (x.usuarios || [])
+      .map(id => {
+        const u = Object.values(data).find(x => String(x.Id) === String(id));
+        return u?.NombreUsuario || id;
+      })
+      .join(", ");
+
+    const supUser = Object.values(data).find(x => String(x.Id) === String(x.supervisor));
+
+    tabla.innerHTML += `
+      <tr>
+        <td>${x.nombre}</td>
+        <td>${supUser?.NombreUsuario || x.supervisor}</td>
+        <td>${users}</td>
+      </tr>
+    `;
+  }
+}
+
+cargarUsuarios();
+loadGrupos();
+</script>
+
+</body>
+</html>

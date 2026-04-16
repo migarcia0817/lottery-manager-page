@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>LOTTERY SYSTEMS - Monitor</title>
+
+<script src="seguridad.js"></script>
+
+<link rel="icon" type="image/png" href="favicon.png">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body { margin:0; font-family: Arial, sans-serif; background:#f9f9f9; }
+  .topbar { background:#512BD4; color:white; display:flex; justify-content:space-between; align-items:center; padding:10px 20px; }
+  .logo-section { display:flex; align-items:center; }
+  .logo-section img { height:40px; margin-right:10px; }
+  .logo-section span { font-size:20px; font-weight:bold; }
+  .menu-right button { background:#fff; color:#512BD4; border:none; padding:8px 12px; border-radius:5px; cursor:pointer; font-weight:bold; }
+  .menu-right button:hover { background:#ddd; }
+
+  .user-info { width:100%; background:#e0d4ff; display:flex; justify-content:flex-end; padding:5px 20px; font-size:14px; color:#333; }
+
+  .monitor-bar { width:93.5%; margin:10px auto 0; background:#512BD4; color:white; display:flex; justify-content:space-between; align-items:center; padding:10px; flex-wrap:wrap; }
+  .date-picker { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+
+  .monitor-buttons { display:flex; gap:10px; margin-top:5px; }
+  .monitor-buttons button { background:#fff; color:#512BD4; border:none; padding:6px 12px; border-radius:5px; cursor:pointer; font-weight:bold; }
+  .monitor-buttons button:hover { background:#ddd; }
+
+  .barra-totales {
+    width:93%;
+    margin:10px auto 0;
+    background:#eee;
+    padding:10px;
+    font-weight:bold;
+    border-radius:5px;
+    text-align:center;
+  }
+
+  /* 🔹 LABEL GRUPO */
+  .label-grupo {
+    width:95%;
+    margin:10px auto 0;
+    font-size:16px;
+    font-weight:bold;
+  }
+
+  .tabla-container {
+    width:95%;
+    margin:10px auto;
+    height:calc(100vh - 380px);
+    overflow-y:auto;
+    background:white;
+    border-radius:5px;
+    box-shadow:0 0 10px rgba(0,0,0,0.1);
+  }
+
+  table { width:100%; border-collapse:collapse; }
+  th, td { border:1px solid #ccc; padding:10px; text-align:center; }
+  th { background:#512BD4; color:white; position:sticky; top:0; }
+
+  .total-row { background:#eee; font-weight:bold; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo-section">
+    <img src="lote.png" alt="Logo">
+    <span>Lottery</span>
+  </div>
+  <div class="menu-right">
+    <button onclick="cerrarSesion()">Cerrar Sesión</button>
+  </div>
+</div>
+
+<div class="user-info" id="userInfo">Usuario: -- | Fecha/Hora: --</div>
+
+<div class="monitor-bar">
+  <h2>Resumen de Ventas</h2>
+
+  <div class="date-picker">
+    <label>Desde: <input type="date" id="fechaDesde"></label>
+    <label>Hasta: <input type="date" id="fechaHasta"></label>
+    <button id="btnBuscar">Buscar</button>
+  </div>
+
+  <div class="monitor-buttons">
+    <button id="btnResumenVentas">Resumen Venta</button>
+    <button id="btnMasVendidoDisp">Más Vendido</button>
+    <button id="btneditarcomision">Editar Comision</button>
+    <button id="btnregresar">Regresar</button>
+  </div>
+</div>
+
+<!-- 🔹 BARRA TOTAL -->
+<div id="barraTotales" class="barra-totales">
+  Total Ventas: 0.00 | Total Premios: 0.00 | Balance: 0.00
+</div>
+
+<!-- 🔹 LABEL GRUPO -->
+<div id="labelGrupo" class="label-grupo">
+  Grupo: --
+</div>
+
+<div class="tabla-container">
+  <table id="tablaMonitor">
+    <thead>
+      <tr>
+        <th>Usuario</th>
+        <th>Total Ventas</th>
+        <th>Total Premios</th>
+        <th>% Comisión</th>
+        <th>Monto Comisión</th>
+        <th>Balance</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<!-- ================= MODAL COMISIÓN ================= -->
+<div id="modalComision" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center;">
+  <div style="background:white; padding:20px; border-radius:10px; width:300px; position:relative;">
+
+    <span onclick="cerrarModal()" style="position:absolute; right:10px; top:10px; cursor:pointer;">X</span>
+
+    <h3>Editar Comisión (%)</h3>
+
+    <select id="comboUsuarios" style="width:100%; margin-bottom:10px; border-radius:5px"></select>
+
+    <label id="lblComisionActual">Comisión actual: 0%</label>
+
+    <input type="number" id="txtComision" placeholder="Ej: 15" style="width:97%; margin:10px 0; border-radius:5px;">
+
+    <button onclick="guardarComision()" style="width:100%; border-radius:5px; background:#1E4A0B;color:#fff ;">Actualizar</button>
+
+
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+import { getDatabase, ref, get, child, set } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+
+const app = initializeApp({
+  apiKey: "TU_API_KEY",
+  databaseURL: "https://bancachupon-default-rtdb.firebaseio.com"
+});
+const db = getDatabase(app);
+
+// --- CONTROL DE INACTIVIDAD ---
+let tiempoInactivo;
+const LIMITE = 10 * 60 * 1000;
+function resetTimer(){
+  clearTimeout(tiempoInactivo);
+  tiempoInactivo = setTimeout(cerrarSesionAuto, LIMITE);
+}
+function cerrarSesionAuto(){
+  localStorage.removeItem("usuarioLogueado");
+  window.location.href = "login.html";
+}
+["click","mousemove","keypress","touchstart"].forEach(evt => document.addEventListener(evt, resetTimer));
+resetTimer();
+
+const usuarioGuardado = JSON.parse(localStorage.getItem("usuarioLogueado"));
+if(!usuarioGuardado) window.location.href = "login.html";
+
+const usuarioLogueado = usuarioGuardado.nombre || "Invitado";
+const usuarioAsignado = usuarioGuardado.nombre || null;
+const tipoUsuario = usuarioGuardado.tipo || null;
+const usuarioLogueadoID = usuarioGuardado.id || usuarioGuardado.uid || usuarioGuardado.Id || null;
+
+// --- FUNCIONES DE APOYO ---
+function getFecha(v){ return v.fechaCreacion || v.FechaCreacion || ""; }
+function getUsuarioId(v){ return v.usuarioId || v.UsuarioId || ""; }
+function getTotal(v){ return v.totalNeto || v.TotalNeto || 0; }
+function getPremio(v){ return v.premioCalculado || v.PremioCalculado || 0; }
+function esGanador(v){ return v.esGanador || v.EsGanador || false; }
+
+function actualizarUserInfo(){
+  const now = new Date();
+  const info = document.getElementById("userInfo");
+  if(info) info.innerHTML = `Usuario: ${usuarioLogueado} | ${now.toLocaleString()}`;
+}
+
+function hoyLocal(){
+  const f = new Date();
+  return `${f.getFullYear()}-${String(f.getMonth()+1).padStart(2,'0')}-${String(f.getDate()).padStart(2,'0')}`;
+}
+
+window.cerrarSesion = () => {
+  localStorage.removeItem("usuarioLogueado");
+  window.location.href="index.html";
+};
+
+// --- MONITOR PRINCIPAL ---
+async function cargarMonitor() {
+  const dInput = document.getElementById("fechaDesde");
+  const hInput = document.getElementById("fechaHasta");
+  if (!dInput || !hInput) return;
+  const desde = dInput.value;
+  const hasta = hInput.value;
+
+  const tbody = document.querySelector("#tablaMonitor tbody");
+  if(tbody) tbody.innerHTML = "<tr><td colspan='6'>Cargando...</td></tr>";
+
+  const [uSnap, gSnap, vSnap, cSnap] = await Promise.all([
+    get(child(ref(db), "Usuarios")),
+    get(child(ref(db), "Grupos")),
+    get(child(ref(db), "ventas")),
+    get(child(ref(db), "Comisiones"))
+  ]);
+
+  const usuariosData = uSnap.val() || {};
+  const gruposData = gSnap.val() || {};
+  const ventasData = vSnap.val() || {};
+  const comisionesData = cSnap.val() || {};
+
+  let permitidos = [];
+  if (tipoUsuario === "Supervisor") {
+    for (const gId in gruposData) {
+      if (String(gruposData[gId].supervisor) === String(usuarioLogueadoID)) {
+        permitidos = gruposData[gId].usuarios || [];
+        break;
+      }
+    }
+  }
+
+  const resumen = {};
+  for (const uid in usuariosData) {
+    const u = usuariosData[uid];
+    const idU = String(u.Id);
+    let ok = false;
+    if (tipoUsuario === "Administrador") ok = true;
+    else if (tipoUsuario === "Supervisor" && permitidos.includes(idU)) ok = true;
+    else if (tipoUsuario === "ADM" && (u.Asignado === usuarioAsignado || u.NombreUsuario === usuarioLogueado)) ok = true;
+
+    if (ok) resumen[idU] = { nombre: u.NombreUsuario || "Sin nombre", ventas: 0, premios: 0 };
+  }
+
+  for (const clave in ventasData) {
+    const v = ventasData[clave];
+    const fSplit = getFecha(v).split("T");
+    const f = fSplit[0];
+    if (f >= desde && f <= hasta) {
+      const uidV = String(getUsuarioId(v));
+      if (resumen[uidV]) {
+        resumen[uidV].ventas += Number(getTotal(v));
+        if (esGanador(v)) resumen[uidV].premios += Number(getPremio(v));
+      }
+    }
+  }
+
+  if(tbody) {
+    tbody.innerHTML = "";
+    let tV=0, tP=0, tC=0;
+    for (const id in resumen) {
+      const r = resumen[id];
+      const porc = comisionesData[id]?.porcentaje || 0;
+      const com = r.ventas * (porc / 100);
+      const bal = r.ventas - r.premios - com;
+      tV += r.ventas; tP += r.premios; tC += com;
+      tbody.innerHTML += `<tr><td>${r.nombre}</td><td>${r.ventas.toFixed(2)}</td><td>${r.premios.toFixed(2)}</td><td>${porc}%</td><td>${com.toFixed(2)}</td><td style="color:${bal>=0?'green':'red'}">${bal.toFixed(2)}</td></tr>`;
+    }
+    const barra = document.getElementById("barraTotales");
+    if(barra) barra.innerText = `Ventas: ${tV.toFixed(2)} | Premios: ${tP.toFixed(2)} | Balance: ${(tV-tP-tC).toFixed(2)}`;
+  }
+}
+
+// --- MODAL COMISIÓN ---
+window.cerrarModal = () => {
+    const modal = document.getElementById("modalComision");
+    if(modal) modal.style.display = "none";
+};
+
+async function cargarUsuariosComision() {
+  const combo = document.getElementById("comboUsuarios");
+  if(!combo) return;
+  
+  combo.innerHTML = "<option value=''>-- Seleccionar --</option>";
+  combo.innerHTML += "<option value='TODOS_GRUPO'>TODOS</option>";
+  
+  const txt = document.getElementById("txtComision");
+  const lbl = document.getElementById("lblComisionActual");
+  if(txt) txt.value = "0";
+  if(lbl) lbl.innerText = "Comisión actual: ---";
+
+  const [uSnap, gSnap] = await Promise.all([
+    get(child(ref(db), "Usuarios")),
+    get(child(ref(db), "Grupos"))
+  ]);
+
+  const usuariosData = uSnap.val() || {};
+  const gruposData = gSnap.val() || {};
+
+  let permitidos = [];
+  if (tipoUsuario === "Supervisor") {
+    for (const gId in gruposData) {
+      if (String(gruposData[gId].supervisor) === String(usuarioLogueadoID)) {
+        permitidos = gruposData[gId].usuarios || [];
+        break;
+      }
+    }
+  }
+
+  for (const uid in usuariosData) {
+    const u = usuariosData[uid];
+    const idU = String(u.Id);
+    let ok = false;
+    if (tipoUsuario === "Administrador") ok = true;
+    else if (tipoUsuario === "Supervisor" && permitidos.includes(idU)) ok = true;
+    else if (tipoUsuario === "ADM" && (u.Asignado === usuarioAsignado || u.NombreUsuario === usuarioLogueado)) ok = true;
+
+    if (ok) combo.innerHTML += `<option value="${idU}">${u.NombreUsuario}</option>`;
+  }
+}
+
+// --- INICIO ---
+window.onload = () => {
+  actualizarUserInfo();
+  setInterval(actualizarUserInfo, 1000);
+  
+  const fD = document.getElementById("fechaDesde");
+  const fH = document.getElementById("fechaHasta");
+  const lG = document.getElementById("labelGrupo");
+  if(fD) fD.value = hoyLocal();
+  if(fH) fH.value = hoyLocal();
+  if(lG) lG.innerText = `Grupo: ${usuarioLogueado}`;
+
+  const btnB = document.getElementById("btnBuscar");
+  const btnR = document.getElementById("btnregresar");
+  const btnM = document.getElementById("btnMasVendidoDisp");
+  const btnE = document.getElementById("btneditarcomision");
+  const comboU = document.getElementById("comboUsuarios");
+
+  if(btnB) btnB.onclick = cargarMonitor;
+  if(btnR) btnR.onclick = () => window.location.href="principal.html";
+  if(btnM) btnM.onclick = () => window.location.href="masvendido.html";
+  if(btnE) btnE.onclick = () => {
+    const modal = document.getElementById("modalComision");
+    if(modal) {
+        modal.style.display = "flex";
+        cargarUsuariosComision();
+    }
+  };
+
+  if(comboU) {
+    comboU.onchange = async (e) => {
+      const uid = e.target.value;
+      const lbl = document.getElementById("lblComisionActual");
+      const txt = document.getElementById("txtComision");
+      if (uid && uid !== "TODOS_GRUPO") {
+        const snap = await get(child(ref(db), "Comisiones/" + uid));
+        const p = snap.val()?.porcentaje || 0;
+        if(lbl) lbl.innerText = `Comisión actual: ${p}%`;
+        if(txt) txt.value = p;
+      } else {
+        if(txt) txt.value = "0";
+        if(lbl) lbl.innerText = uid === "TODOS_GRUPO" ? "Aplicando a todo el grupo" : "Comisión actual: 0%";
+      }
+    };
+  }
+
+  window.guardarComision = async () => {
+    const combo = document.getElementById("comboUsuarios");
+    if(!combo) return;
+    const seleccion = combo.value;
+    const txt = document.getElementById("txtComision");
+    const p = txt ? parseFloat(txt.value) : NaN;
+
+    if (!seleccion) return alert("Selecciona un usuario o la opción TODOS");
+    if (isNaN(p)) return alert("Valor inválido");
+
+    try {
+      if (seleccion === "TODOS_GRUPO") {
+        const promesas = [];
+        for (let i = 2; i < combo.options.length; i++) {
+          const uid = combo.options[i].value;
+          promesas.push(set(ref(db, "Comisiones/" + uid), { porcentaje: Number(p) }));
+        }
+        if (promesas.length === 0) return alert("No hay usuarios en la lista.");
+        await Promise.all(promesas);
+        alert(`✅ Comisión aplicada a ${promesas.length} usuarios.`);
+      } else {
+        await set(ref(db, "Comisiones/" + seleccion), { porcentaje: Number(p) });
+        alert("✅ Comisión guardada correctamente");
+      }
+      cargarMonitor();
+      window.cerrarModal();
+    } catch (error) {
+      alert("❌ Error al procesar");
+    }
+  };
+
+  cargarMonitor();
+};
+</script>
+
+
+</body>
+</html>

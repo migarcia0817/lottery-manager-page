@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Más Vendido - Lottery Systems</title>
+
+<script src="seguridad.js"></script>
+
+<link rel="icon" type="image/png" href="favicon.png">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body { margin:0; font-family: Arial, sans-serif; background:#f9f9f9; }
+  .topbar { background:#512BD4; color:white; display:flex; justify-content:space-between; align-items:center; padding:10px 20px; flex-wrap:wrap; }
+  .logo-section { display:flex; align-items:center; }
+  .logo-section img { height:40px; margin-right:10px; }
+  .logo-section span { font-size:20px; font-weight:bold; }
+  .menu-right button { background:#512BD4; color:#fff; border:none; padding:3px 6px; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 22px; }
+  .menu-right button:hover { background:#ddd; }
+
+  /* 🔥 AGREGADO MENU */
+  .menu-right { position:relative; }
+
+  .menu-dropdown {
+    display:none;
+    position:absolute;
+    right:0;
+    top:40px;
+    background:white;
+    border-radius:8px;
+    box-shadow:0 5px 15px rgba(0,0,0,0.2);
+    overflow:hidden;
+    z-index:1000;
+     min-width: 200px; 
+  }
+
+  .menu-dropdown button {
+    display:block;
+    width:100%;
+    border:none;
+    background:white;
+    padding:10px;
+    text-align:left;
+    cursor:pointer;
+    color:#000;
+    font-size:15px;
+    border-bottom: 1px solid #ddd;
+
+  }
+
+  .menu-dropdown button:hover {
+    background:#f0f0f0;
+  }
+
+  .user-info { width:100%; background:#e0d4ff; display:flex; justify-content:flex-end; padding:5px 20px; font-size:14px; color:#333; }
+
+  .monitor-bar { width:93.5%; margin:10px auto; background:#512BD4; color:white; display:flex; justify-content:space-between; align-items:center; padding:10px; flex-wrap:wrap; border-radius:5px; gap:15px; }
+  .monitor-bar h2 { margin:0; flex-basis:100%; }
+
+  .date-picker { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .date-picker input, .date-picker button { padding:5px 10px; border-radius:5px; border:none; font-weight:bold; }
+  .date-picker button { background:#fff; color:#512BD4; cursor:pointer; }
+  .date-picker button:hover { background:#ddd; }
+
+  .monitor-buttons { display:flex; gap:10px; flex-wrap:wrap; margin-left:auto; }
+  .monitor-buttons button { background:#fff; color:#512BD4; border:none; padding:6px 12px; border-radius:5px; cursor:pointer; font-weight:bold; }
+  .monitor-buttons button:hover { background:#ddd; }
+
+  .tabla-container { width:95%; margin:10px auto; max-height:calc(100vh - 250px); overflow:auto; background:white; border-radius:5px; box-shadow:0 0 10px rgba(0,0,0,0.1); }
+  table { width:100%; border-collapse:collapse; min-width:400px; }
+  th, td { border:1px solid #ccc; padding:10px; text-align:center; }
+  th { background:#512BD4; color:white; position:sticky; top:0; z-index:2; }
+  tr:nth-child(even) { background:#f5f5f5; }
+  tr.total-row { background:#eee; font-weight:bold; }
+  tr:hover { background:#dcdcdc; }
+
+  /* 📱 RESPONSIVE (AGREGADO) */
+  @media (max-width: 768px) {
+    .tabla-container { width:100%; margin:0; border-radius:0; }
+    .monitor-bar { width:100%; margin:0; border-radius:0; }
+    th, td { padding:8px; font-size:12px; }
+  }
+
+  @media (max-width: 480px) {
+    th, td { font-size:11px; padding:6px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo-section">
+    <img src="lote.png" alt="Logo">
+    <span>Lottery</span>
+  </div>
+  <div class="menu-right">
+
+    <!-- 🔥 BOTÓN MENU -->
+    <button onclick="toggleMenu()">☰</button>
+
+    <!-- 🔥 MENU -->
+    <div id="menuDropdown" class="menu-dropdown">
+      <button onclick="window.location.href='loterias.html'">Loterías</button>
+      <button onclick="window.location.href='bancas.html'">Banca</button>
+      <button onclick="window.location.href='tickets.html'">Ticket</button>
+      <button onclick="window.location.href='cambioclave.html'">Cambiar Usuario</button>
+     <button onclick="localStorage.removeItem('usuarioLogueado'); window.location.href='index.html';">Cerrar Sesión</button>
+    </div>
+
+  </div>
+</div>
+
+<div class="user-info" id="userInfo">Usuario: -- | Fecha/Hora: --</div>
+
+<div class="monitor-bar">
+  <h2>Más Vendido</h2>
+
+  <div class="date-picker">
+    <label>Fecha: <input type="date" id="fechaSeleccionada"></label>
+    <button id="btnBuscar">Buscar</button>
+  </div>
+
+  <div class="monitor-buttons">
+    <button onclick="window.location.href='monitor.html'">Resumen Venta</button>
+    <button style="background:#fff; color:#512BD4; cursor:default;">Más Vendido</button>
+    <button onclick="window.location.href='principal.html'">Regresar</button>
+  </div>
+</div>
+
+<div class="tabla-container">
+  <table id="tablaMasVendido">
+    <thead>
+      <tr>
+        <th>Grupo</th>
+        <th>Número</th>
+        <th>Veces Vendido</th>
+        <th>Monto Total</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+
+/* 🔥 MENU SCRIPT */
+window.toggleMenu = () => {
+  const menu = document.getElementById("menuDropdown");
+  menu.style.display = menu.style.display === "block" ? "none" : "block";
+};
+
+window.addEventListener("click", function(e){
+  if(!e.target.closest(".menu-right")){
+    document.getElementById("menuDropdown").style.display = "none";
+  }
+});
+
+const app = initializeApp({
+  apiKey: "TU_API_KEY",
+  databaseURL: "https://bancachupon-default-rtdb.firebaseio.com"
+});
+const db = getDatabase(app);
+
+//contro de cerrar solo 
+let tiempoInactivo;
+const LIMITE = 10 * 60 * 1000;
+
+function resetTimer(){
+  clearTimeout(tiempoInactivo);
+  tiempoInactivo = setTimeout(cerrarSesionAuto, LIMITE);
+}
+
+function cerrarSesionAuto(){
+  localStorage.removeItem("usuarioLogueado");
+  alert("Sesión cerrada por inactividad");
+  window.location.href = "login.html";
+}
+
+["click","mousemove","keypress","touchstart"].forEach(evt=>{
+  document.addEventListener(evt, resetTimer);
+});
+
+resetTimer();
+
+const usuarioGuardado = JSON.parse(localStorage.getItem("usuarioLogueado"));
+const usuarioLogueado = usuarioGuardado ? usuarioGuardado.nombre : "Invitado";
+const usuarioAsignado = usuarioGuardado ? usuarioGuardado.nombre : null;
+
+function actualizarUserInfo(){
+  const now = new Date();
+  document.getElementById("userInfo").innerHTML = 
+    `Usuario: ${usuarioLogueado} | Fecha/Hora: ${now.toLocaleString()}`;
+}
+
+window.cerrarSesion = () => {
+  alert("Sesión cerrada");
+  window.location.href = "index.html";
+};
+
+async function cargarMasVendido(){
+  const fecha = document.getElementById("fechaSeleccionada").value;
+  if(!fecha) return alert("Selecciona una fecha.");
+
+  const tbody = document.querySelector("#tablaMasVendido tbody");
+  tbody.innerHTML = "<tr><td colspan='4'>Cargando...</td></tr>";
+
+  // 1. Obtener datos de sesión
+  const supervisorID = usuarioGuardado?.id || usuarioGuardado?.uid || usuarioGuardado?.Id;
+  const tipo = usuarioGuardado?.tipo || "";
+
+  // 2. Cargar Usuarios y Grupos para determinar quiénes son permitidos
+  const usuariosSnap = await get(child(ref(db), "Usuarios"));
+  const usuariosData = usuariosSnap.val() || {};
+  
+  let usuariosPermitidos = {}; // Guardaremos { "idUsuario": true }
+
+  if (tipo === "Administrador") {
+    // El Admin ve a todos
+    for(const uid in usuariosData) usuariosPermitidos[String(usuariosData[uid].Id)] = true;
+  } 
+  else if (tipo === "Supervisor") {
+    // Buscamos los usuarios del grupo de este supervisor
+    const gruposSnap = await get(child(ref(db), "Grupos"));
+    const gruposData = gruposSnap.val() || {};
+    for (const gId in gruposData) {
+      if (String(gruposData[gId].supervisor) === String(supervisorID)) {
+        (gruposData[gId].usuarios || []).forEach(uId => {
+          usuariosPermitidos[String(uId)] = true;
+        });
+        break;
+      }
+    }
+  } 
+  else {
+    // Caso ADM (Asignados)
+    for(const uid in usuariosData){
+      const u = usuariosData[uid];
+      if(u.Asignado === usuarioAsignado){
+        usuariosPermitidos[String(u.Id)] = true;
+      }
+    }
+  }
+
+  // 3. Procesar Ventas filtrando por usuarios permitidos
+  const ventasSnap = await get(child(ref(db), "ventas"));
+  const ventasData = ventasSnap.val() || {};
+
+  const grupos = {
+    "Quiniela": {}, "Pale": {}, "Tripleta": {}, "SuperPale": {}
+  };
+
+  for(const clave in ventasData){
+    const v = ventasData[clave];
+    const fechaRaw = v.fechaCreacion || v.FechaCreacion;
+    if(!fechaRaw) continue;
+    
+    const fechaVenta = fechaRaw.split("T")[0];
+    if(fechaVenta !== fecha) continue;
+
+    // 🔥 FILTRO DE SEGURIDAD: Solo procesar si el usuarioId está en permitidos
+    if(!usuariosPermitidos[String(v.usuarioId)]) continue;
+
+    if(v.quinielas && Array.isArray(v.quinielas)){
+      v.quinielas.forEach(q => agregarNumero(grupos.Quiniela, q.numeros, q.montoDecimal));
+    }
+    if(v.pales && Array.isArray(v.pales)){
+      v.pales.forEach(p => agregarNumero(grupos.Pale, p.numeros, p.montoDecimal));
+    }
+    if(v.tripletas && Array.isArray(v.tripletas)){
+      v.tripletas.forEach(t => agregarNumero(grupos.Tripleta, t.numeros, t.montoDecimal));
+    }
+    if(v.superPales && Array.isArray(v.superPales)){
+      v.superPales.forEach(s => agregarNumero(grupos.SuperPale, s.numeros, s.monto));
+    }
+  }
+
+  function agregarNumero(grupo, numero, monto){
+    if(!numero) return;
+    if(!grupo[numero]) grupo[numero] = { veces:0, monto:0 };
+    grupo[numero].veces += 1;
+    grupo[numero].monto += Number(monto) || 0;
+  }
+
+  // 4. Renderizar resultados
+  tbody.innerHTML = "";
+
+  for(const grupoName in grupos){
+    const arr = Object.keys(grupos[grupoName]).map(num => ({
+      numero: num, 
+      veces: grupos[grupoName][num].veces, 
+      monto: grupos[grupoName][num].monto
+    }));
+    
+    arr.sort((a,b) => b.veces - a.veces);
+    const top10 = arr.slice(0,10);
+
+    if(top10.length === 0){
+      tbody.innerHTML += `<tr><td>${grupoName}</td><td colspan="3">No hay ventas</td></tr>`;
+      continue;
+    }
+
+    top10.forEach((item,index) => {
+      let color = "";
+      if(index===0) color="background:#ffd700;";
+      else if(index===1) color="background:#c0c0c0;";
+      else if(index===2) color="background:#cd7f32;";
+      tbody.innerHTML += `<tr style="${color}">
+        <td>${grupoName}</td>
+        <td>${item.numero}</td>
+        <td>${item.veces}</td>
+        <td>${item.monto.toFixed(2)}</td>
+      </tr>`;
+    });
+  }
+}
+
+
+document.getElementById("btnBuscar").addEventListener("click", cargarMasVendido);
+
+window.onload = () => {
+  actualizarUserInfo();
+  setInterval(actualizarUserInfo,1000);
+
+  const now = new Date();
+  const hoy = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+                .toISOString()
+                .split("T")[0];
+
+  document.getElementById("fechaSeleccionada").value = hoy;
+  cargarMasVendido();
+};
+</script>
+
+</body>
+</html>
