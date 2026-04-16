@@ -181,8 +181,7 @@ if(!userData){
   window.location.href = "login.html";
 }
 
-// ✅ ya seguro existe
-const usuarioLogueado = userData.nombre;
+
 
 const usuarioGuardado = JSON.parse(localStorage.getItem("usuarioLogueado"));
 const usuarioLogueado = usuarioGuardado ? usuarioGuardado.nombre : "Invitado";
