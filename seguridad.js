@@ -1,14 +1,17 @@
 // seguridad.js
 (function() {
     const userData = JSON.parse(localStorage.getItem("usuarioLogueado"));
-    const paginaActual = window.location.pathname.split("/").pop();
+    
+    // 1. Obtener el nombre del archivo ignorando rutas y parámetros
+    const url = window.location.pathname;
+    const paginaActual = url.substring(url.lastIndexOf('/') + 1).toLowerCase();
 
-    // 1. SI ES LA PÁGINA DE LOGIN O INDEX, NO HACER NADA (DEJAR PASAR)
+    // 2. EXCEPCIONES: Páginas que NO deben bloquearse nunca (Login e Index)
     if (paginaActual === "login.html" || paginaActual === "index.html" || paginaActual === "") {
         return; 
     }
 
-    // 2. BLOQUEO SI NO HAY SESIÓN (Solo para páginas internas)
+    // 3. BLOQUEO SI NO HAY SESIÓN
     if (!userData) {
         window.location.href = "login.html";
         return;
@@ -16,11 +19,9 @@
 
     const tipoUsuario = userData.tipo || "";
 
-    // 3. DEFINIR PERMISOS DEL SUPERVISOR
+    // 4. VALIDACIÓN DE PERMISOS PARA EL SUPERVISOR
     if (tipoUsuario === "Supervisor") {
         const paginasPermitidas = [
-            "login.html",
-            "principal.html",
             "reportes.html",
             "reporteventas.html",
             "listajugada.html",
@@ -31,23 +32,24 @@
             "masvendido.html"
         ];
 
-        if (!paginasPermitidas.includes(paginaActual)) {
+        // Verificamos si la página actual está permitida
+        const esPermitida = paginasPermitidas.some(p => paginaActual.includes(p.toLowerCase()));
+
+        if (!esPermitida) {
             alert("⛔ Acceso denegado: Su rol no permite entrar a esta sección.");
-            window.location.href = "principal.html";
+            window.location.href = "reportes.html";
+            return;
         }
     }
 
-    // 4. MODO SOLO LECTURA PARA SUPERVISOR
+    // 5. MODO SOLO LECTURA (Desactivar botones de edición para Supervisor)
     document.addEventListener("DOMContentLoaded", () => {
         if (tipoUsuario === "Supervisor") {
-            const botonesProhibidos = ["guardar", "eliminar", "crear", "actualizar", "borrar", "update", "delete", "save"];
-            
-            document.querySelectorAll("button, input[type='button'], input[type='submit']").forEach(btn => {
+            const prohibidos = ["guardar", "eliminar", "crear", "actualizar", "borrar", "update", "delete", "save"];
+            document.querySelectorAll("button, input[type='button'], a").forEach(btn => {
                 const texto = (btn.innerText || btn.value || btn.id || "").toLowerCase();
-                if (botonesProhibidos.some(palabra => texto.includes(palabra))) {
-                    btn.disabled = true;
-                    btn.style.opacity = "0.5";
-                    btn.style.cursor = "not-allowed";
+                if (prohibidos.some(p => texto.includes(p))) {
+                    btn.style.display = "none"; // Es mejor ocultarlos para evitar errores
                 }
             });
         }
