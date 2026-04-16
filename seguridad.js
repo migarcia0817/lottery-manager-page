@@ -22,6 +22,7 @@
     // 4. VALIDACIÓN DE PERMISOS PARA EL SUPERVISOR
     if (tipoUsuario === "Supervisor") {
         const paginasPermitidas = [
+            "principal.html",
             "reportes.html",
             "reporteventas.html",
             "listajugada.html",
