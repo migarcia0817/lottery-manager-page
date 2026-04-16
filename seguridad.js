@@ -19,6 +19,7 @@
     // 3. DEFINIR PERMISOS DEL SUPERVISOR
     if (tipoUsuario === "Supervisor") {
         const paginasPermitidas = [
+            "login.html",
             "principal.html",
             "reportes.html",
             "reporteventas.html",
