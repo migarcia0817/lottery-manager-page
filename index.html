@@ -51,8 +51,8 @@ window.login = async function() {
       for (let key in data) {
         const u = data[key];
 
-   if (u.NombreUsuario === usuario) {
-          usuarioEncontrado = true;
+ if (u.NombreUsuario.toLowerCase() === usuario.toLowerCase()) {
+    usuarioEncontrado = true;
 
    if (u.Clave === password && u.Activo === true) {
             tipoUsuario = u.TipoUsuario;
