@@ -140,8 +140,10 @@ const db = getDatabase(app);
 
 /* USUARIO */
 const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
-document.getElementById("userInfo").innerText =
-  "Usuario: " + (user?.nombre || "Invitado");
+const fechaHoy = new Date().toLocaleDateString(); // Formato: DD/MM/AAAA
+
+document.getElementById("userInfo").innerHTML = 
+  "Usuario: " + (user?.nombre || "Invitado") + " | Fecha: " + fechaHoy;
 
 /* 🔥 MENU FUNCIONES */
 window.toggleMenu = function(){
