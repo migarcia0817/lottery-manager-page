@@ -138,46 +138,83 @@ let usuariosGrupo = [];
 let usuariosIdMap = {}; // 🔹 almacenar ID de Firebase
 
 /* 🔹 Cargar usuarios */
-async function cargarUsuarios(){
-  const snap = await get(child(ref(db),"Usuarios"));
-  const data = snap.val() || {};
-  comboUsuario.innerHTML = "<option value=''>Seleccione Usuario</option>";
-  usuariosIdMap = {};
+document.getElementById("agregarUsuarioBtn").addEventListener("click", ()=>{
+  const seleccion = comboUsuario.value;
+  
+  if(!seleccion) return;
 
-  for(const uid in data){
-    const u = data[uid];
-
-    // 🔹 Si es Administrador ve todos, si es ADM solo sus asignados
-    if(tipoUsuarioLogueado === "Administrador" || u.Asignado === usuarioLogueado){
-      comboUsuario.innerHTML += `<option value="${u.Id}">${u.NombreUsuario}</option>`;
-      usuariosIdMap[u.Id] = u.NombreUsuario;
+  if(seleccion === "TODOS_VISIBLES"){
+    // Recorremos el combo para agregar a todos los que NO estén ya en la lista
+    for (let i = 0; i < comboUsuario.options.length; i++) {
+      const id = comboUsuario.options[i].value;
+      // Saltamos las opciones vacías o de mando
+      if(id !== "" && id !== "TODOS_VISIBLES"){
+        if(!usuariosGrupo.includes(id)){
+          usuariosGrupo.push(id);
+        }
+      }
     }
+    renderUsuariosGrupo();
+  } else {
+    // Agregar uno por uno normalmente
+    if(usuariosGrupo.includes(seleccion)){ alert("Usuario ya agregado"); return; }
+    usuariosGrupo.push(seleccion);
+    renderUsuariosGrupo();
   }
-}
+});
+
 cargarUsuarios();
 
 /* 🔹 Agregar usuario al grupo */
-document.getElementById("agregarUsuarioBtn").addEventListener("click", ()=>{
-  const usuarioId = comboUsuario.value;
-  if(!usuarioId) return;
-  if(usuariosGrupo.includes(usuarioId)){ alert("Usuario ya agregado"); return; }
-  usuariosGrupo.push(usuarioId);
-  renderUsuariosGrupo();
+/* 🔹 Agregar usuario al grupo (Individual o Masivo) */
+document.getElementById("agregarUsuarioBtn").addEventListener("click", () => {
+  const seleccion = comboUsuario.value;
+
+  if (!seleccion) return;
+
+  // 🔥 Lógica para agregar TODOS
+  if (seleccion === "TODOS_VISIBLES") {
+    let seAgregoAlguien = false;
+    for (let i = 0; i < comboUsuario.options.length; i++) {
+      const id = comboUsuario.options[i].value;
+      
+      // Filtramos para no agregar el valor vacío ni la propia opción "TODOS"
+      if (id !== "" && id !== "TODOS_VISIBLES") {
+        if (!usuariosGrupo.includes(id)) {
+          usuariosGrupo.push(id);
+          seAgregoAlguien = true;
+        }
+      }
+    }
+    if (seAgregoAlguien) renderUsuariosGrupo();
+  } 
+  // Lógica normal para UN SOLO usuario
+  else {
+    if (usuariosGrupo.includes(seleccion)) {
+      alert("Usuario ya agregado");
+      return;
+    }
+    usuariosGrupo.push(seleccion);
+    renderUsuariosGrupo();
+  }
 });
 
-function renderUsuariosGrupo(){
+/* 🔹 Renderizar los elementos en el contenedor */
+function renderUsuariosGrupo() {
   grupoContainer.innerHTML = '';
-  usuariosGrupo.forEach((id,index)=>{
+  usuariosGrupo.forEach((id, index) => {
     const nombre = usuariosIdMap[id] || id;
     const div = document.createElement('div');
     div.className = 'usuarioItem';
     div.textContent = nombre;
+
     const btn = document.createElement('button');
-    btn.textContent='x';
-    btn.onclick = ()=>{
-      usuariosGrupo.splice(index,1);
+    btn.textContent = 'x';
+    btn.onclick = () => {
+      usuariosGrupo.splice(index, 1);
       renderUsuariosGrupo();
     };
+
     div.appendChild(btn);
     grupoContainer.appendChild(div);
   });
