@@ -173,7 +173,8 @@ if(!userData){
 
 // ✅ ya seguro existe
 const usuarioLogueado = userData.nombre;
-document.getElementById("userInfo").innerHTML = "Usuario: " + usuarioLogueado;
+ const fechaHoy = new Date().toLocaleDateString(); // Formato: DD/MM/AAAA
+  document.getElementById("userInfo").innerHTML = "Usuario: " + usuarioLogueado + " | Fecha: " + fechaHoy;
 
 const DEFAULT_LIMITS = { "Qui": 500, "Pale": 50, "Trip": 25, "Sp": 30 };
 
