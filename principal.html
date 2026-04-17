@@ -279,10 +279,11 @@ document.addEventListener("DOMContentLoaded", () => {
   cargarPremios();
 });
 
-/* 🔥 PREMIOS */
-async function cargarPremios(fechaSeleccionada = null){
-
-  const fecha = fechaSeleccionada || hoyLocal();
+/* 🔥 PREMIOS (CORREGIDO CON TUS COLORES) */
+async function cargarPremios() {
+  // 1. Capturar la fecha del input para que la búsqueda funcione
+  const inputFecha = document.getElementById("fechaPremio").value;
+  const fecha = inputFecha || hoyLocal();
 
   const tbody = document.querySelector("#tablaPremios tbody");
   tbody.innerHTML = "<tr><td colspan='3'>Cargando...</td></tr>";
@@ -294,19 +295,18 @@ async function cargarPremios(fechaSeleccionada = null){
   const loteriasData = loteriasSnap.val() || {};
 
   tbody.innerHTML = "";
-
   const ahora = new Date();
 
-  for(const clave in resultadosData){
-
-    const res = resultadosData[clave][fecha];
+  // Recorremos las loterías para mostrar su estado
+  for (const clave in loteriasData) {
+    const res = resultadosData[clave] ? resultadosData[clave][fecha] : null;
     const horarioStr = loteriasData[clave]?.HorarioCierre || "—";
+    const nombreLoteria = loteriasData[clave]?.LoteriaNombre || clave;
 
     const fila = document.createElement("tr");
-
     let horarioCierre = null;
 
-    if(horarioStr !== "—"){
+    if (horarioStr !== "—") {
       const [hora, minuto] = horarioStr.split(":").map(Number);
       horarioCierre = new Date();
       horarioCierre.setHours(hora, minuto, 0, 0);
@@ -314,22 +314,24 @@ async function cargarPremios(fechaSeleccionada = null){
 
     let segundoTd = "";
 
-    if(res && res.PrimerPremio){
-      segundoTd = `<span style="white-space:nowrap;color:#0D1DB8">
+    // 2. Aplicar tus colores originales
+    if (res && res.PrimerPremio) {
+      // AZUL si hay premios
+      segundoTd = `<span style="white-space:nowrap; color:#0D1DB8; font-weight:bold;">
         ${res.PrimerPremio} - ${res.SegundoPremio} - ${res.TercerPremio}
       </span>`;
       fila.style.color = "#0D1DB8";
 
-    } else if(horarioCierre && ahora < horarioCierre){
+    } else if (horarioCierre && ahora < horarioCierre && fecha === hoyLocal()) {
+      // VERDE si está activo (solo para hoy)
       segundoTd = "Activo";
       fila.style.color = "green";
 
     } else {
+      // ROJO si no hay resultados
       segundoTd = "Sin resultado";
-      fila.classList.add("sin-resultado");
+      fila.classList.add("sin-resultado"); // Usa tu estilo CSS .sin-resultado { color: red; }
     }
-
-    const nombreLoteria = loteriasData[clave]?.LoteriaNombre || clave;
 
     fila.innerHTML = `
       <td>${nombreLoteria}</td>
@@ -344,6 +346,7 @@ async function cargarPremios(fechaSeleccionada = null){
 /* 🔥 EXPORT */
 window.cargarPremios = cargarPremios;
 window.hoyLocal = hoyLocal;
+
 
 </script>
 </body>
