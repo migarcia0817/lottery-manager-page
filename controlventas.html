@@ -172,7 +172,8 @@ window.toggleMenu = function(){
 
 // ℹ️ info
 function initInfo(){
-  document.getElementById("userInfo").innerHTML = "Usuario: " + usuarioLogueado;
+  const fechaHoy = new Date().toLocaleDateString(); // Formato: DD/MM/AAAA
+  document.getElementById("userInfo").innerHTML = "Usuario: " + usuarioLogueado + " | Fecha: " + fechaHoy;
   document.getElementById("grupoLabel").innerHTML = "Grupo: " + usuarioLogueado;
 }
 
