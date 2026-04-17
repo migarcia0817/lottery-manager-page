@@ -122,8 +122,13 @@ resetTimer();
 const userData = JSON.parse(localStorage.getItem("usuarioLogueado"));
 const usuarioLogueado = userData ? userData.nombre : "Invitado";
 const tipoUsuarioLogueado = userData ? userData.tipo : "";
-document.getElementById("userInfo").innerHTML = "Usuario: " + usuarioLogueado;
+
+// Usamos Date directamente para evitar errores si hoyLocal() no ha cargado
+const fechaHoy = new Date().toISOString().split('T')[0]; 
+
+document.getElementById("userInfo").innerHTML = "Usuario: " + usuarioLogueado + " | Fecha: " + fechaHoy;
 document.getElementById("grupoLabel").textContent = "Grupo: " + usuarioLogueado;
+
 
 /* 🔹 Campos y contenedores */
 const comboUsuario = document.getElementById("comboUsuario");
