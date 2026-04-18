@@ -75,7 +75,7 @@ body { margin:0; font-family: Arial, sans-serif; background:#f9f9f9; }
   background:darkgreen; 
 }
 
-  #btnControlVenta:hover { 
+#btnControlVenta:hover { 
   background:darkgreen; 
 }
 
@@ -110,7 +110,7 @@ th { background:#512BD4; color:white; position:sticky; top:0; }
 <div class="topbar">
   <div class="logo-section">
     <img src="lote.png" alt="Logo">
-    <span style="font-size: 20px;font-weight: bold;>Lottery</span>
+    <span style="font-size: 20px;font-weight: bold;">Lottery</span>
   </div>
   <div class="hamburger" onclick="toggleMenu()">☰</div>
   <div id="menuDropdown" class="menu-dropdown">
@@ -331,12 +331,15 @@ async function actualizarMonto(){
   }
 }
 
+
+
 /* 🔥 BOTON CONTROL VENTA */
 document.getElementById("btnControlVenta").addEventListener("click", ()=>{
   window.location.href = "controlventas.html";
 });
 
-  * 🔥 BOTON editar limite de ventas */
+
+/* 🔥 BOTON editar limite de ventas */
 document.getElementById("btnEditarlimite").addEventListener("click", ()=>{
   window.location.href = "editarlimite.html";
 });
