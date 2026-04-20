@@ -64,7 +64,7 @@
     border-radius: 5px; 
     border: none; 
     outline: none; 
-    flex: 0 1 150px; /* No crecen demasiado, base de 120px */
+    flex: 0 1 160px; /* No crecen demasiado, base de 120px */
     min-width: 110px; /* Tamaño mínimo más pequeño */
     font-size: 13px; /* Fuente un poco más pequeña */
 }
@@ -114,7 +114,7 @@
   <div class="filters-row">
     <input type="date" id="fechaSeleccionada">
     <select id="comboUsuario"><option value="">Cargando Usuarios...</option></select>
-    <select id="comboLoteria"><option value="">Todas las Loterías</option></select>
+    <select id="comboLoteria"><option value="">Todas</option></select>
     <button class="btn-buscar" id="btnBuscar">BUSCAR</button>
   </div>
   <div class="monitor-buttons">
@@ -161,7 +161,7 @@ async function cargarFiltros() {
     const userSnap = await get(child(ref(db), "Usuarios"));
     const users = userSnap.val() || {};
     const comboUser = document.getElementById("comboUsuario");
-    comboUser.innerHTML = '<option value="TODOS">Todos los Usuarios</option>';
+    comboUser.innerHTML = '<option value="TODOS">Todos</option>';
 
     let permitidos = [];
     if (tipoUsuario === "Supervisor") {
