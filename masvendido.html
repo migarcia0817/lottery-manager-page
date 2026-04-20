@@ -10,118 +10,115 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   body { margin:0; font-family: Arial, sans-serif; background:#f9f9f9; }
-  .topbar { background:#512BD4; color:white; display:flex; justify-content:space-between; align-items:center; padding:10px 20px; flex-wrap:wrap; }
+  .topbar { background:#512BD4; color:white; display:flex; justify-content:space-between; align-items:center; padding:10px 20px; position: relative;}
   .logo-section { display:flex; align-items:center; }
   .logo-section img { height:40px; margin-right:10px; }
   .logo-section span { font-size:20px; font-weight:bold; }
-  .menu-right button { background:#512BD4; color:#fff; border:none; padding:3px 6px; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 22px; }
-  .menu-right button:hover { background:#ddd; }
-
-  /* 🔥 AGREGADO MENU */
-  .menu-right { position:relative; }
+  .hamburger { font-size:26px; cursor:pointer; user-select:none; }
 
   .menu-dropdown {
-    display:none;
-    position:absolute;
-    right:0;
-    top:40px;
-    background:white;
-    border-radius:8px;
-    box-shadow:0 5px 15px rgba(0,0,0,0.2);
-    overflow:hidden;
-    z-index:1000;
-     min-width: 200px; 
+    display:none; position:absolute; right:20px; top:60px; background:white;
+    border-radius:8px; box-shadow:0 5px 15px rgba(0,0,0,0.2); z-index:1000; min-width: 200px;
+  }
+  .menu-dropdown.show { display: block; }
+  .menu-dropdown a { display:block; width:100%; border:none; background:white; padding:12px; text-align:left; cursor:pointer; color:#000; text-decoration: none; font-size:15px; border-bottom: 1px solid #ddd; }
+  .menu-dropdown a:hover { background:#f0f0f0; }
+
+  .user-info { width:100%; background:#e0d4ff; display:flex; justify-content:flex-end; padding:5px 20px; font-size:14px; color:#333; box-sizing: border-box; }
+
+  .monitor-bar { 
+  width: 95%; 
+  margin: 10px auto; 
+  background: #512BD4; 
+  color: white; 
+  padding: 10px 15px; /* Reducimos padding vertical */
+  border-radius: 8px; 
+  display: flex; 
+  flex-direction: row; /* Alinea todo en horizontal */
+  flex-wrap: nowrap;   /* Evita que se salten de línea */
+  gap: 10px;           /* Espacio pequeño entre elementos */
+  align-items: center; /* Centra verticalmente los elementos */
+  justify-content: space-between; /* Distribuye el espacio */
+  box-sizing: border-box;
+}
+
+.monitor-bar h2 { 
+  margin: 0; 
+  font-size: 18px; /* Reducimos un poco el título para que quepa todo */
+  white-space: nowrap; /* Evita que el título se rompa en dos líneas */
+}
+
+/* Ajuste para que los grupos internos también se alineen */
+.filters-row, .monitor-buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Ajuste para que los inputs no se estiren demasiado */
+.filters-row input, .filters-row select {
+  width: auto;
+  min-width: 100px;
+  padding: 8px; /* Reduje un poco el padding */
+    border-radius: 5px; 
+    border: none; 
+    outline: none; 
+    flex: 0 1 150px; /* No crecen demasiado, base de 120px */
+    min-width: 110px; /* Tamaño mínimo más pequeño */
+    font-size: 13px; /* Fuente un poco más pequeña */
+}
+  
+  .btn-buscar { 
+    background: #28a745; color: white; border: none; padding: 10px 25px; 
+    border-radius: 5px; cursor: pointer; font-weight: bold; flex: 0 1 auto;
+  }
+  .btn-buscar:hover { background: #218838; }
+
+  .monitor-buttons { display:flex; gap:10px; flex-wrap:wrap; }
+  .monitor-buttons button { 
+    background:#fff; color:#512BD4; border:none; padding:8px 15px; 
+    border-radius:5px; cursor:pointer; font-weight:bold; flex: 1 1 auto; max-width: 180px;
   }
 
-  .menu-dropdown button {
-    display:block;
-    width:100%;
-    border:none;
-    background:white;
-    padding:10px;
-    text-align:left;
-    cursor:pointer;
-    color:#000;
-    font-size:15px;
-    border-bottom: 1px solid #ddd;
-
-  }
-
-  .menu-dropdown button:hover {
-    background:#f0f0f0;
-  }
-
-  .user-info { width:100%; background:#e0d4ff; display:flex; justify-content:flex-end; padding:5px 20px; font-size:14px; color:#333; }
-
-  .monitor-bar { width:93.5%; margin:10px auto; background:#512BD4; color:white; display:flex; justify-content:space-between; align-items:center; padding:10px; flex-wrap:wrap; border-radius:5px; gap:15px; }
-  .monitor-bar h2 { margin:0; flex-basis:100%; }
-
-  .date-picker { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-  .date-picker input, .date-picker button { padding:5px 10px; border-radius:5px; border:none; font-weight:bold; }
-  .date-picker button { background:#fff; color:#512BD4; cursor:pointer; }
-  .date-picker button:hover { background:#ddd; }
-
-  .monitor-buttons { display:flex; gap:10px; flex-wrap:wrap; margin-left:auto; }
-  .monitor-buttons button { background:#fff; color:#512BD4; border:none; padding:6px 12px; border-radius:5px; cursor:pointer; font-weight:bold; }
-  .monitor-buttons button:hover { background:#ddd; }
-
-  .tabla-container { width:95%; margin:10px auto; max-height:calc(100vh - 250px); overflow:auto; background:white; border-radius:5px; box-shadow:0 0 10px rgba(0,0,0,0.1); }
-  table { width:100%; border-collapse:collapse; min-width:400px; }
+  .tabla-container { width:95%; margin:10px auto; height:calc(100vh - 280px); overflow:auto; background:white; border-radius:5px; box-shadow:0 0 10px rgba(0,0,0,0.1); }
+  table { width:100%; border-collapse:collapse; }
   th, td { border:1px solid #ccc; padding:10px; text-align:center; }
   th { background:#512BD4; color:white; position:sticky; top:0; z-index:2; }
-  tr:nth-child(even) { background:#f5f5f5; }
-  tr.total-row { background:#eee; font-weight:bold; }
-  tr:hover { background:#dcdcdc; }
 
-  /* 📱 RESPONSIVE (AGREGADO) */
-  @media (max-width: 768px) {
-    .tabla-container { width:100%; margin:0; border-radius:0; }
-    .monitor-bar { width:100%; margin:0; border-radius:0; }
-    th, td { padding:8px; font-size:12px; }
-  }
-
-  @media (max-width: 480px) {
-    th, td { font-size:11px; padding:6px; }
+  @media (max-width: 600px) {
+    .filters-row input, .filters-row select, .btn-buscar { flex: 1 1 100%; }
+    .monitor-bar h2 { text-align: center; }
   }
 </style>
 </head>
 <body>
 
 <div class="topbar">
-  <div class="logo-section">
-    <img src="lote.png" alt="Logo">
-    <span>Lottery</span>
-  </div>
+  <div class="logo-section"><img src="lote.png"><span>Lottery</span></div>
   <div class="menu-right">
-
-    <!-- 🔥 BOTÓN MENU -->
-    <button onclick="toggleMenu()">☰</button>
-
-    <!-- 🔥 MENU -->
+    <div class="hamburger" onclick="toggleMenu()">☰</div>
     <div id="menuDropdown" class="menu-dropdown">
-      <button onclick="window.location.href='loterias.html'">Loterías</button>
-      <button onclick="window.location.href='bancas.html'">Banca</button>
-      <button onclick="window.location.href='tickets.html'">Ticket</button>
-      <button onclick="window.location.href='cambioclave.html'">Cambiar Usuario</button>
-     <button onclick="localStorage.removeItem('usuarioLogueado'); window.location.href='index.html';">Cerrar Sesión</button>
+      <a href="principal.html">Principal</a>
+      <a href="monitor.html">Monitor</a>
+      <a href="reportes.html">Reportes</a>
+      <a href="javascript:void(0)" onclick="localStorage.removeItem('usuarioLogueado'); window.location.href='index.html';">Cerrar Sesión</a>
     </div>
-
   </div>
 </div>
 
-<div class="user-info" id="userInfo">Usuario: -- | Fecha/Hora: --</div>
+<div class="user-info" id="userInfo"></div>
 
 <div class="monitor-bar">
   <h2>Más Vendido</h2>
-
-  <div class="date-picker">
-    <label>Fecha: <input type="date" id="fechaSeleccionada"></label>
-    <button id="btnBuscar">Buscar</button>
+  <div class="filters-row">
+    <input type="date" id="fechaSeleccionada">
+    <select id="comboUsuario"><option value="">Cargando Usuarios...</option></select>
+    <select id="comboLoteria"><option value="">Todas las Loterías</option></select>
+    <button class="btn-buscar" id="btnBuscar">BUSCAR</button>
   </div>
-
   <div class="monitor-buttons">
     <button onclick="window.location.href='monitor.html'">Resumen Venta</button>
-    <button style="background:#fff; color:#512BD4; cursor:default;">Más Vendido</button>
     <button onclick="window.location.href='principal.html'">Regresar</button>
   </div>
 </div>
@@ -132,7 +129,7 @@
       <tr>
         <th>Grupo</th>
         <th>Número</th>
-        <th>Veces Vendido</th>
+        <th>Veces</th>
         <th>Monto Total</th>
       </tr>
     </thead>
@@ -144,193 +141,116 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
 import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
-/* 🔥 MENU SCRIPT */
-window.toggleMenu = () => {
-  const menu = document.getElementById("menuDropdown");
-  menu.style.display = menu.style.display === "block" ? "none" : "block";
-};
-
-window.addEventListener("click", function(e){
-  if(!e.target.closest(".menu-right")){
-    document.getElementById("menuDropdown").style.display = "none";
-  }
-});
-
-const app = initializeApp({
-  apiKey: "TU_API_KEY",
-  databaseURL: "https://bancachupon-default-rtdb.firebaseio.com"
-});
+const app = initializeApp({ apiKey: "TU_API_KEY", databaseURL: "https://bancachupon-default-rtdb.firebaseio.com" });
 const db = getDatabase(app);
 
-//contro de cerrar solo 
-let tiempoInactivo;
-const LIMITE = 10 * 60 * 1000;
+const userData = JSON.parse(localStorage.getItem("usuarioLogueado"));
+const tipoUsuario = userData?.tipo || "";
+const usuarioLogueadoID = userData?.id || userData?.uid || userData?.Id;
 
-function resetTimer(){
-  clearTimeout(tiempoInactivo);
-  tiempoInactivo = setTimeout(cerrarSesionAuto, LIMITE);
+window.toggleMenu = () => document.getElementById("menuDropdown").classList.toggle("show");
+
+async function cargarFiltros() {
+    const lotSnap = await get(child(ref(db), "TodasLasLoterias"));
+    const lotData = lotSnap.val() || {};
+    const comboLot = document.getElementById("comboLoteria");
+    for (const key in lotData) {
+        comboLot.innerHTML += `<option value="${key}">${lotData[key].LoteriaNombre}</option>`;
+    }
+
+    const userSnap = await get(child(ref(db), "Usuarios"));
+    const users = userSnap.val() || {};
+    const comboUser = document.getElementById("comboUsuario");
+    comboUser.innerHTML = '<option value="TODOS">Todos los Usuarios</option>';
+
+    let permitidos = [];
+    if (tipoUsuario === "Supervisor") {
+        const grupSnap = await get(child(ref(db), "Grupos"));
+        const grupos = grupSnap.val() || {};
+        for (const g in grupos) {
+            if (String(grupos[g].supervisor) === String(usuarioLogueadoID)) {
+                permitidos = grupos[g].usuarios || [];
+                break;
+            }
+        }
+    }
+
+    for (const id in users) {
+        const u = users[id];
+        let ok = false;
+        if (tipoUsuario === "Administrador") ok = true;
+        else if (tipoUsuario === "Supervisor" && permitidos.includes(String(u.Id))) ok = true;
+        else if (tipoUsuario === "ADM" && (u.Asignado === userData.nombre || u.NombreUsuario === userData.nombre)) ok = true;
+
+        if (ok) comboUser.innerHTML += `<option value="${u.Id}">${u.NombreUsuario}</option>`;
+    }
 }
 
-function cerrarSesionAuto(){
-  localStorage.removeItem("usuarioLogueado");
-  alert("Sesión cerrada por inactividad");
-  window.location.href = "login.html";
+async function cargarMasVendido() {
+    const fecha = document.getElementById("fechaSeleccionada").value;
+    const usuarioFiltro = document.getElementById("comboUsuario").value;
+    const loteriaFiltro = document.getElementById("comboLoteria").value;
+    if (!fecha) return;
+
+    const tbody = document.querySelector("#tablaMasVendido tbody");
+    tbody.innerHTML = "<tr><td colspan='4'>Cargando...</td></tr>";
+
+    const ventasSnap = await get(child(ref(db), "ventas"));
+    const ventasData = ventasSnap.val() || {};
+    const permitidosIds = Array.from(document.getElementById("comboUsuario").options).map(o => o.value);
+
+    const grupos = { "Quiniela": {}, "Pale": {}, "Tripleta": {}, "SuperPale": {} };
+
+    for (const key in ventasData) {
+        const v = ventasData[key];
+        const fVenta = (v.fechaCreacion || v.FechaCreacion || "").split("T")[0];
+        const uVenta = String(v.usuarioId || "");
+        const lVenta = v.loteriasAsociadasClave || "";
+
+        if (fVenta !== fecha) continue;
+        if (usuarioFiltro === "TODOS" && !permitidosIds.includes(uVenta) && tipoUsuario !== "Administrador") continue;
+        if (usuarioFiltro !== "TODOS" && uVenta !== usuarioFiltro) continue;
+        if (loteriaFiltro && lVenta !== loteriaFiltro) continue;
+
+        const proc = (arr, target) => {
+            if (arr && Array.isArray(arr)) {
+                arr.forEach(i => {
+                    const n = i.numeros;
+                    const m = Number(i.montoDecimal || i.monto || 0);
+                    if (!target[n]) target[n] = { veces: 0, monto: 0 };
+                    target[n].veces++;
+                    target[n].monto += m;
+                });
+            }
+        };
+        proc(v.quinielas, grupos.Quiniela);
+        proc(v.pales, grupos.Pale);
+        proc(v.tripletas, grupos.Tripleta);
+        proc(v.superPales, grupos.SuperPale);
+    }
+
+    tbody.innerHTML = "";
+    for (const g in grupos) {
+        const arr = Object.keys(grupos[g]).map(n => ({ n, ...grupos[g][n] })).sort((a,b) => b.veces - a.veces).slice(0, 10);
+        if (arr.length === 0) {
+            tbody.innerHTML += `<tr><td>${g}</td><td colspan="3">No hay ventas</td></tr>`;
+        } else {
+            arr.forEach((it, idx) => {
+                const color = idx === 0 ? "background:#ffd700" : idx === 1 ? "background:#c0c0c0" : idx === 2 ? "background:#cd7f32" : "";
+                tbody.innerHTML += `<tr style="${color}"><td>${g}</td><td>${it.n}</td><td>${it.veces}</td><td>${it.monto.toFixed(2)}</td></tr>`;
+            });
+        }
+    }
 }
 
-["click","mousemove","keypress","touchstart"].forEach(evt=>{
-  document.addEventListener(evt, resetTimer);
-});
-
-resetTimer();
-
-const usuarioGuardado = JSON.parse(localStorage.getItem("usuarioLogueado"));
-const usuarioLogueado = usuarioGuardado ? usuarioGuardado.nombre : "Invitado";
-const usuarioAsignado = usuarioGuardado ? usuarioGuardado.nombre : null;
-
-function actualizarUserInfo(){
-  const now = new Date();
-  document.getElementById("userInfo").innerHTML = 
-    `Usuario: ${usuarioLogueado} | Fecha/Hora: ${now.toLocaleString()}`;
-}
-
-window.cerrarSesion = () => {
-  alert("Sesión cerrada");
-  window.location.href = "index.html";
-};
-
-async function cargarMasVendido(){
-  const fecha = document.getElementById("fechaSeleccionada").value;
-  if(!fecha) return alert("Selecciona una fecha.");
-
-  const tbody = document.querySelector("#tablaMasVendido tbody");
-  tbody.innerHTML = "<tr><td colspan='4'>Cargando...</td></tr>";
-
-  // 1. Obtener datos de sesión
-  const supervisorID = usuarioGuardado?.id || usuarioGuardado?.uid || usuarioGuardado?.Id;
-  const tipo = usuarioGuardado?.tipo || "";
-
-  // 2. Cargar Usuarios y Grupos para determinar quiénes son permitidos
-  const usuariosSnap = await get(child(ref(db), "Usuarios"));
-  const usuariosData = usuariosSnap.val() || {};
-  
-  let usuariosPermitidos = {}; // Guardaremos { "idUsuario": true }
-
-  if (tipo === "Administrador") {
-    // El Admin ve a todos
-    for(const uid in usuariosData) usuariosPermitidos[String(usuariosData[uid].Id)] = true;
-  } 
-  else if (tipo === "Supervisor") {
-    // Buscamos los usuarios del grupo de este supervisor
-    const gruposSnap = await get(child(ref(db), "Grupos"));
-    const gruposData = gruposSnap.val() || {};
-    for (const gId in gruposData) {
-      if (String(gruposData[gId].supervisor) === String(supervisorID)) {
-        (gruposData[gId].usuarios || []).forEach(uId => {
-          usuariosPermitidos[String(uId)] = true;
-        });
-        break;
-      }
-    }
-  } 
-  else {
-    // Caso ADM (Asignados)
-    for(const uid in usuariosData){
-      const u = usuariosData[uid];
-      if(u.Asignado === usuarioAsignado){
-        usuariosPermitidos[String(u.Id)] = true;
-      }
-    }
-  }
-
-  // 3. Procesar Ventas filtrando por usuarios permitidos
-  const ventasSnap = await get(child(ref(db), "ventas"));
-  const ventasData = ventasSnap.val() || {};
-
-  const grupos = {
-    "Quiniela": {}, "Pale": {}, "Tripleta": {}, "SuperPale": {}
-  };
-
-  for(const clave in ventasData){
-    const v = ventasData[clave];
-    const fechaRaw = v.fechaCreacion || v.FechaCreacion;
-    if(!fechaRaw) continue;
-    
-    const fechaVenta = fechaRaw.split("T")[0];
-    if(fechaVenta !== fecha) continue;
-
-    // 🔥 FILTRO DE SEGURIDAD: Solo procesar si el usuarioId está en permitidos
-    if(!usuariosPermitidos[String(v.usuarioId)]) continue;
-
-    if(v.quinielas && Array.isArray(v.quinielas)){
-      v.quinielas.forEach(q => agregarNumero(grupos.Quiniela, q.numeros, q.montoDecimal));
-    }
-    if(v.pales && Array.isArray(v.pales)){
-      v.pales.forEach(p => agregarNumero(grupos.Pale, p.numeros, p.montoDecimal));
-    }
-    if(v.tripletas && Array.isArray(v.tripletas)){
-      v.tripletas.forEach(t => agregarNumero(grupos.Tripleta, t.numeros, t.montoDecimal));
-    }
-    if(v.superPales && Array.isArray(v.superPales)){
-      v.superPales.forEach(s => agregarNumero(grupos.SuperPale, s.numeros, s.monto));
-    }
-  }
-
-  function agregarNumero(grupo, numero, monto){
-    if(!numero) return;
-    if(!grupo[numero]) grupo[numero] = { veces:0, monto:0 };
-    grupo[numero].veces += 1;
-    grupo[numero].monto += Number(monto) || 0;
-  }
-
-  // 4. Renderizar resultados
-  tbody.innerHTML = "";
-
-  for(const grupoName in grupos){
-    const arr = Object.keys(grupos[grupoName]).map(num => ({
-      numero: num, 
-      veces: grupos[grupoName][num].veces, 
-      monto: grupos[grupoName][num].monto
-    }));
-    
-    arr.sort((a,b) => b.veces - a.veces);
-    const top10 = arr.slice(0,10);
-
-    if(top10.length === 0){
-      tbody.innerHTML += `<tr><td>${grupoName}</td><td colspan="3">No hay ventas</td></tr>`;
-      continue;
-    }
-
-    top10.forEach((item,index) => {
-      let color = "";
-      if(index===0) color="background:#ffd700;";
-      else if(index===1) color="background:#c0c0c0;";
-      else if(index===2) color="background:#cd7f32;";
-      tbody.innerHTML += `<tr style="${color}">
-        <td>${grupoName}</td>
-        <td>${item.numero}</td>
-        <td>${item.veces}</td>
-        <td>${item.monto.toFixed(2)}</td>
-      </tr>`;
-    });
-  }
-}
-
-
-document.getElementById("btnBuscar").addEventListener("click", cargarMasVendido);
-
-window.onload = () => {
-  actualizarUserInfo();
-  setInterval(actualizarUserInfo,1000);
-
-  const now = new Date();
-  const hoy = new Date(now.getTime() - now.getTimezoneOffset() * 60000)
-                .toISOString()
-                .split("T")[0];
-
-  document.getElementById("fechaSeleccionada").value = hoy;
-  cargarMasVendido();
+window.onload = async () => {
+    const fHoy = new Date().toISOString().split("T")[0];
+    document.getElementById("fechaSeleccionada").value = fHoy;
+    document.getElementById("userInfo").innerHTML = `Usuario: ${userData?.nombre} | Fecha: ${new Date().toLocaleDateString()}`;
+    await cargarFiltros();
+    cargarMasVendido();
+    document.getElementById("btnBuscar").onclick = cargarMasVendido;
 };
 </script>
-
 </body>
 </html>
