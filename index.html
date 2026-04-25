@@ -162,6 +162,14 @@ function cerrarSesionAuto(){
 // Iniciar contador
 resetTimer();
 </script>
-
+<script>
+  // Empuja un estado vacío al historial para "atrapar" el botón atrás
+  history.pushState(null, null, location.href);
+  
+  window.onpopstate = function () {
+    // Cuando el usuario intenta navegar, lo obligamos a quedarse en la URL actual
+    history.go(1);
+  };
+</script>
 </body>
 </html>
