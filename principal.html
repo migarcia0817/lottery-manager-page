@@ -145,6 +145,7 @@
     <button onclick="window.location.href='bancas.html'">Banca</button>
     <button onclick="window.location.href='tickets.html'">Ticket</button>
     <button onclick="window.location.href='cambioclave.html'">Usuarios</button>
+    <button onclick="window.location.href='gruporecarga.html'">Recargas</button>
     <button onclick="localStorage.removeItem('usuarioLogueado'); window.location.href='index.html';">Cerrar Sesión</button>
   </div>
 </div>
@@ -203,7 +204,7 @@ const LIMITE = 10 * 60 * 1000;
 const userData = JSON.parse(localStorage.getItem("usuarioLogueado"));
 
 if (!userData) {
-  window.location.href = "login.html";
+  window.location.href = "index.html";
 }
 
 const usuarioLogueado = userData.nombre;
@@ -213,7 +214,7 @@ const tipoUsuario = userData.tipo;
 function cerrarSesionAuto(){
   localStorage.removeItem("usuarioLogueado");
   alert("Sesión cerrada por inactividad");
-  window.location.href = "login.html";
+  window.location.href = "index.html";
 }
 
 function resetTimer(){
@@ -346,7 +347,6 @@ async function cargarPremios() {
 /* 🔥 EXPORT */
 window.cargarPremios = cargarPremios;
 window.hoyLocal = hoyLocal;
-
 
 </script>
 </body>
