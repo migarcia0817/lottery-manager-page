@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Gestión de Grupos de Recarga</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body { margin:0; font-family: Arial; background:#f9f9f9; }
+.topbar { background:#512BD4; color:white; display:flex; justify-content:space-between; padding:10px 20px; flex-wrap:wrap; }
+.user-info { background:#e0d4ff; padding:5px 20px; text-align:right; }
+.titulo { width:95%; margin:20px auto; background:#512BD4; color:white; padding:10px; text-align:center; border-radius:5px; font-weight:bold; }
+.filtros { width:95%; margin:10px auto; display:flex; gap:10px; flex-wrap:wrap; align-items: center; }
+.filtros select, .filtros input, .filtros button { padding:10px; border-radius:5px; border:1px solid #ccc; flex:1 1 150px; min-width:120px; }
+.filtros button { background:#28a745; color:white; cursor:pointer; font-weight: bold; }
+#grupoContainer { width:95%; margin:10px auto; background:#f1f1f1; padding:10px; border-radius:5px; min-height:40px; display:flex; flex-wrap:wrap; gap:5px; border: 1px dashed #512BD4; }
+.usuarioItem { background:#512BD4; color:white; padding:5px 10px; border-radius:5px; display:flex; align-items:center; gap:5px; font-size: 14px; }
+.usuarioItem button { background:#dc3545; border:none; padding:2px 6px; border-radius:3px; cursor:pointer; color:white; }
+#tablaGrupos { width:95%; margin:20px auto; background:white; padding:15px; border-radius:5px; overflow-x:auto; box-shadow: 0px 0px 10px rgba(0,0,0,0.1); }
+#tablaGrupos h2 { text-align:center; color:#512BD4; margin-bottom:15px; }
+table { width:100%; border-collapse:collapse; margin-top:10px; }
+th, td { border:1px solid #ccc; padding:10px; text-align:center; }
+th { background:#512BD4; color:white; }
+button.btn-eliminar { background:#dc3545; color:white; padding:5px 10px; border:none; border-radius:5px; cursor:pointer; }
+.status { margin-top:10px; color:green; font-weight:bold; text-align:center; }
+@media(max-width:768px){ .filtros { flex-direction: column; } }
+</style>
+</head>
+
+<body>
+<div class="topbar"><span style="font-size:18px; font-weight: bold;">Sistema - Grupos de Recarga</span></div>
+<div class="user-info" id="userInfo"></div>
+<div class="titulo">Configuración de Grupos de Recarga Telefónica</div>
+
+<div id="grupoForm">
+  <h2 style="margin-left: 25px; color: #512BD4;">Crear Nuevo Grupo</h2>
+  <div class="filtros">
+    <select id="comboSupervisor"><option value="">Cargando Supervisores...</option></select>
+    <input type="text" id="grupoUsuario" placeholder="Usuario para Recargas">
+    <input type="password" id="grupoPass" placeholder="Password de Grupo">
+    <select id="comboUsuariosGrupo"><option value="">Cargando Usuarios...</option></select>
+    <button type="button" id="agregarUsuarioBtn" style="background: #512BD4;">Añadir al Grupo</button>
+    <button type="button" id="guardarGrupoBtn">Guardar Grupo en Firebase</button>
+  </div>
+
+  <div id="grupoContainer">
+    <span style="color: #666; font-style: italic;">Usuarios seleccionados aparecerán aquí...</span>
+  </div>
+  <div class="status" id="status"></div>
+</div>
+
+<div id="tablaGrupos">
+  <h2>Grupos Existentes</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID Grupo</th>
+        <th>Supervisor</th>
+        <th>Usuario Acceso</th>
+        <th>Integrantes (IDs)</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="tbodyGrupos"></tbody>
+  </table>
+  <div style="text-align: right; margin-top: 10px;">
+    <button style="padding:10px 20px; background:#6c757d; color:white; border:none; border-radius:5px; cursor:pointer;" onclick="window.location.href='principal.html'">Regresar</button>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+import { getDatabase, ref, set, get, child, push, remove } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "TU_API_KEY",
+  databaseURL: "https://bancachupon-default-rtdb.firebaseio.com"
+};
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const userData = JSON.parse(localStorage.getItem("usuarioLogueado"));
+if (!userData || userData.tipo !== "Administrador") {
+  alert("Acceso denegado.");
+  window.location.href = "index.html";
+}
+
+document.getElementById("userInfo").innerHTML = `Admin: ${userData.nombre} | ${new Date().toLocaleDateString()}`;
+
+const comboSupervisor = document.getElementById("comboSupervisor");
+const comboUsuariosGrupo = document.getElementById("comboUsuariosGrupo");
+const grupoContainer = document.getElementById("grupoContainer");
+const tbodyGrupos = document.getElementById("tbodyGrupos");
+
+let seleccionadosIds = [];
+let usuariosDataMap = {}; 
+
+async function cargarUsuarios() {
+  try {
+    const snap = await get(child(ref(db), "Usuarios"));
+    const data = snap.val() || {};
+    
+    comboSupervisor.innerHTML = '<option value="">Seleccione ADM</option>';
+    comboUsuariosGrupo.innerHTML = '<option value="">Seleccione Integrante</option>';
+    
+    usuariosDataMap = {};
+
+    for (const uid in data) {
+      const u = data[uid];
+      const nombreMostrar = u.NombreUsuario || u.Nombre || "Sin nombre";
+      
+      // EXTRAEMOS TU ID PERSONALIZADO (ej: 670)
+      const idInterno = u.Id || uid; 
+      usuariosDataMap[idInterno] = nombreMostrar;
+
+      const tipoUser = (u.TipoUsuario || u.tipo || u.Tipo || "").toString().toUpperCase();
+
+      if (tipoUser === "ADM") {
+        comboSupervisor.innerHTML += `<option value="${idInterno}">${nombreMostrar}</option>`;
+      }
+      comboUsuariosGrupo.innerHTML += `<option value="${idInterno}">${nombreMostrar}</option>`;
+    }
+    cargarTablaGrupos();
+  } catch (error) { console.error(error); }
+}
+
+document.getElementById("agregarUsuarioBtn").addEventListener("click", () => {
+  const id = comboUsuariosGrupo.value; // Este valor ahora es el Id interno (ej: 670)
+  if (!id) return;
+  if (seleccionadosIds.includes(id)) return alert("Ya está en la lista");
+
+  seleccionadosIds.push(id);
+  renderSeleccionados();
+});
+
+function renderSeleccionados() {
+  if (seleccionadosIds.length === 0) {
+    grupoContainer.innerHTML = '<span style="color: #666;">Usuarios seleccionados aparecerán aquí...</span>';
+    return;
+  }
+  grupoContainer.innerHTML = "";
+  seleccionadosIds.forEach(id => {
+    const div = document.createElement("div");
+    div.className = "usuarioItem";
+    div.innerHTML = `${usuariosDataMap[id]} <button onclick="quitarUsuario('${id}')">X</button>`;
+    grupoContainer.appendChild(div);
+  });
+}
+
+window.quitarUsuario = (id) => {
+  seleccionadosIds = seleccionadosIds.filter(item => item !== id);
+  renderSeleccionados();
+};
+
+document.getElementById("guardarGrupoBtn").addEventListener("click", async () => {
+  const supervisorId = comboSupervisor.value;
+  const userNom = document.getElementById("grupoUsuario").value;
+  const pass = document.getElementById("grupoPass").value;
+
+  if (!supervisorId || !userNom || !pass || seleccionadosIds.length === 0) {
+    alert("Complete todos los campos.");
+    return;
+  }
+
+  const nuevoGrupoRef = push(ref(db, "GruposRecarga"));
+  const datosGrupo = {
+    idGrupo: nuevoGrupoRef.key,
+    supervisorId: supervisorId,
+    supervisorNombre: usuariosDataMap[supervisorId],
+    usuarioAcceso: userNom,
+    password: pass,
+    integrantes: seleccionadosIds, // GUARDA LA LISTA DE IDs NUMÉRICOS
+    fechaCreacion: new Date().toISOString()
+  };
+
+  try {
+    await set(nuevoGrupoRef, datosGrupo);
+    alert("Grupo guardado con éxito");
+    location.reload();
+  } catch (e) { console.error(e); }
+});
+
+async function cargarTablaGrupos() {
+  const snap = await get(child(ref(db), "GruposRecarga"));
+  const data = snap.val() || {};
+  tbodyGrupos.innerHTML = "";
+
+  for (const key in data) {
+    const g = data[key];
+    const nombresIntegrantes = (g.integrantes || []).map(id => usuariosDataMap[id] || id).join(", ");
+    
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td style="font-size:10px">${g.idGrupo.substring(0,8)}</td>
+      <td>${g.supervisorNombre}</td>
+      <td>${g.usuarioAcceso}</td>
+      <td style="font-size:11px">${nombresIntegrantes}</td>
+      <td><button class="btn-eliminar" onclick="eliminarGrupo('${key}')">Eliminar</button></td>
+    `;
+    tbodyGrupos.appendChild(tr);
+  }
+}
+
+window.eliminarGrupo = async (id) => {
+  if (confirm("¿Eliminar este grupo?")) {
+    await remove(ref(db, `GruposRecarga/${id}`));
+    cargarTablaGrupos();
+  }
+};
+
+cargarUsuarios();
+</script>
+</body>
+</html>
