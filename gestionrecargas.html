@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>LOTTERY SYSTEMS - Límites de Recarga</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+  body { margin:0; font-family: Arial, sans-serif; background:#f9f9f9; }
+  .topbar { background:#512BD4; color:white; display:flex; justify-content:space-between; align-items:center; padding:10px 20px; position:relative; }
+  .logo-section { display:flex; align-items:center; }
+  .logo-section img { height:40px; margin-right:10px; }
+  .logo-section span { font-size:20px; font-weight:bold; }
+  .hamburger { font-size:26px; cursor:pointer; user-select:none; }
+  
+  .menu-dropdown { position:absolute; top:60px; right:20px; background:white; border-radius:8px; box-shadow:0 0 10px rgba(0,0,0,0.2); display:none; flex-direction:column; min-width:200px; z-index:999; }
+  .menu-dropdown button { padding:12px; border:none; background:white; text-align:left; cursor:pointer; font-weight:bold; border-bottom:1px solid #eee; }
+  .menu-dropdown button:hover { background:#f2f2f2; }
+
+  .user-info { width:100%; background:#e0d4ff; display:flex; justify-content:flex-end; padding:5px 20px; font-size:14px; color:#333; box-sizing: border-box; }
+  
+  .titulo-bar { width:95%; margin:15px auto; background:#512BD4; color:white; padding:12px; border-radius:5px; text-align:center; font-weight:bold; font-size:18px; }
+
+  .filtros { 
+    width: 95%; margin: 10px auto; display: flex; gap: 10px; flex-wrap: wrap; 
+    background: white; padding: 15px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); box-sizing: border-box; 
+  }
+
+  .filtros select, .filtros input, .filtros button { 
+    padding: 10px; border-radius: 5px; border: 1px solid #ccc; flex: 1 1 150px; min-width: 120px; 
+  }
+  
+  #grupoLabel { display:block; width:95%; margin:10px auto; font-weight:bold; color:#512BD4; font-size:16px; }
+
+  #seleccionadosContainer { width:95%; margin:10px auto; display:flex; flex-wrap:wrap; gap:5px; background:#eee; padding:10px; border-radius:5px; min-height:30px; }
+  .tag { background:#512BD4; color:white; padding:5px 10px; border-radius:15px; display:flex; align-items:center; gap:8px; font-size:13px; }
+  .tag span { cursor:pointer; font-weight:bold; background:rgba(255,255,255,0.3); border-radius:50%; width:18px; height:18px; display:flex; align-items:center; justify-content:center; }
+
+  .tabla-container { width:95%; margin:20px auto; background:white; border-radius:5px; box-shadow:0 0 10px rgba(0,0,0,0.1); overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { border:1px solid #ccc; padding:12px; text-align:center; }
+  th { background:#512BD4; color:white; }
+  .btn-borrar { background:#dc3545; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; }
+</style>
+</head>
+
+<body>
+
+<div class="topbar">
+  <div class="logo-section"><img src="lote.png" alt="Logo"><span>Lottery</span></div>
+  <div class="hamburger" onclick="toggleMenu()">☰</div>
+  <div id="menuDropdown" class="menu-dropdown">
+    <button onclick="window.location.href='principal.html'">Principal</button>
+    <button onclick="window.location.href='loterias.html'">Loterias</button>
+    <button onclick="window.location.href='bancas.html'">Banca</button>
+    <button onclick="window.location.href='tickets.html'">Ticket</button>
+    <button id="menuLinkGrupo" style="display:none;" onclick="window.location.href='cambioclave.html'">Usuario</button>
+    <button onclick="window.location.href='index.html'">Cerrar Sesión</button>
+  </div>
+</div>
+
+<div class="user-info" id="userInfo">Usuario: -- | Fecha/Hora: --</div>
+
+<div class="titulo-bar">Definir Límites de Recarga Diaria</div>
+
+<div id="grupoLabel">Grupo: --</div>
+
+<div class="filtros">
+  <select id="comboUsuarios"><option value="">Cargando usuarios...</option></select>
+  <input type="number" id="limiteDiario" placeholder="Límite Recarga Diaria">
+  <input type="number" id="limitePorTransaccion" placeholder="Límite por Transacción">
+  <button style="background:#28a745; color:white;" onclick="guardarLimites()">Guardar Límites</button>
+  
+  <!-- Botón exclusivo para Administradores -->
+  <button id="btnIrGrupoRecarga" style="display:none; background:#512BD4; color:white;" onclick="window.location.href='gruporecarga.html'">Gestionar Grupos</button>
+</div>
+
+<div id="seleccionadosContainer"></div>
+
+<div class="tabla-container">
+  <table>
+    <thead>
+      <tr>
+        <th>Usuario</th>
+        <th>ID</th>
+        <th>Límite Diario</th>
+        <th>Límite Transacción</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="tbodyLimites"></tbody>
+  </table>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+import { getDatabase, ref, set, get, child, onValue, remove } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "TU_API_KEY",
+  databaseURL: "https://bancachupon-default-rtdb.firebaseio.com"
+};
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const userData = JSON.parse(localStorage.getItem("usuarioLogueado"));
+if (!userData) window.location.href = "index.html";
+
+const usuarioLogueado = userData.nombre;
+const tipoUsuarioLogueado = userData.tipo.toString().toUpperCase().trim();
+
+// --- VISIBILIDAD DE BOTONES ADMIN ---
+if (tipoUsuarioLogueado === "ADMINISTRADOR" || tipoUsuarioLogueado === "ADMIN") {
+    document.getElementById("btnIrGrupoRecarga").style.display = "block";
+    document.getElementById("menuLinkGrupo").style.display = "block";
+}
+
+document.getElementById("grupoLabel").textContent = "Grupo: " + usuarioLogueado;
+
+window.toggleMenu = () => {
+  const m = document.getElementById("menuDropdown");
+  m.style.display = m.style.display === "flex" ? "none" : "flex";
+};
+window.cerrarSesion = () => { localStorage.removeItem("usuarioLogueado"); window.location.href="index.html"; };
+
+let usuariosLista = []; 
+let seleccionados = []; 
+
+async function cargarUsuarios() {
+  const snap = await get(child(ref(db), "Usuarios"));
+  const data = snap.val() || {};
+  const combo = document.getElementById("comboUsuarios");
+  combo.innerHTML = '<option value="">Seleccione Usuario</option><option value="TODOS">TODOS</option>';
+  
+  usuariosLista = [];
+  for (let key in data) {
+    const u = data[key];
+    if (tipoUsuarioLogueado === "ADMINISTRADOR" || u.Asignado === usuarioLogueado) {
+      usuariosLista.push({ id: u.Id || key, nombre: u.NombreUsuario });
+      combo.innerHTML += `<option value="${u.Id || key}">${u.NombreUsuario}</option>`;
+    }
+  }
+}
+
+document.getElementById("comboUsuarios").addEventListener("change", (e) => {
+  const val = e.target.value;
+  if (!val) return;
+  if (val === "TODOS") {
+    seleccionados = usuariosLista.map(u => u.id.toString());
+  } else {
+    if (!seleccionados.includes(val.toString())) seleccionados.push(val.toString());
+  }
+  renderTags();
+  e.target.value = "";
+});
+
+function renderTags() {
+  const container = document.getElementById("seleccionadosContainer");
+  container.innerHTML = "";
+  seleccionados.forEach(id => {
+    const u = usuariosLista.find(x => x.id == id);
+    if (!u) return;
+    const tag = document.createElement("div");
+    tag.className = "tag";
+    tag.innerHTML = `${u.nombre} <span onclick="quitarTag('${id}')">x</span>`;
+    container.appendChild(tag);
+  });
+}
+
+window.quitarTag = (id) => {
+  seleccionados = seleccionados.filter(x => x != id);
+  renderTags();
+};
+
+window.guardarLimites = async () => {
+  const diario = document.getElementById("limiteDiario").value;
+  const porDia = document.getElementById("limitePorTransaccion").value;
+  if (seleccionados.length === 0 || !diario || !porDia) return alert("Complete todos los campos");
+
+  for (let id of seleccionados) {
+    const u = usuariosLista.find(x => x.id == id);
+    await set(ref(db, 'limiterecarga/' + id), {
+      idusuario: id,
+      nombreusuario: u.nombre,
+      limiteDiario: diario,
+      limitePorTransaccion: porDia,
+      registradoPor: usuarioLogueado,
+      fecha: new Date().toLocaleString()
+    });
+  }
+  alert("Guardado correctamente");
+  seleccionados = [];
+  renderTags();
+};
+
+function cargarTabla() {
+  onValue(ref(db, 'limiterecarga'), (snapshot) => {
+    const data = snapshot.val();
+    const tbody = document.getElementById("tbodyLimites");
+    tbody.innerHTML = "";
+    if (data) {
+      for (let id in data) {
+        const d = data[id];
+        // FILTRO: Admin ve todo, ADM solo lo suyo
+        if (tipoUsuarioLogueado === "ADMINISTRADOR" || d.registradoPor === usuarioLogueado) {
+          tbody.innerHTML += `
+            <tr>
+              <td>${d.nombreusuario}</td>
+              <td>${d.idusuario}</td>
+              <td>$${d.limiteDiario}</td>
+              <td>$${d.limitePorTransaccion}</td>
+              <td><button class="btn-borrar" onclick="eliminarLimite('${id}')">Borrar</button></td>
+            </tr>`;
+        }
+      }
+    }
+  });
+}
+
+window.eliminarLimite = (id) => { if(confirm("¿Borrar?")) remove(ref(db, 'limiterecarga/' + id)); };
+
+setInterval(() => {
+  document.getElementById("userInfo").innerHTML = `Usuario: ${usuarioLogueado} | ${new Date().toLocaleString()}`;
+}, 1000);
+
+cargarUsuarios();
+cargarTabla();
+</script>
+</body>
+</html>
