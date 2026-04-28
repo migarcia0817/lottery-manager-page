@@ -29,6 +29,7 @@ li button{ width:22px; height:22px; border-radius:50%; background:red; color:whi
 table{ width:95%; margin:20px auto; background:white; border-collapse:collapse; }
 td,th{ border:1px solid #ccc; padding:8px; text-align: center; }
 th{ background: #512BD4; color: white; }
+.btn-borrar { background: #dc3545; color: white; padding: 5px 10px; border: none; border-radius: 4px; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -54,7 +55,7 @@ th{ background: #512BD4; color: white; }
     <h3>Clave</h3>
     <select id="usuariosClave"></select>
     <input id="nuevaClave" type="password" placeholder="Nueva Clave">
-    <button style="background:#30A72A;"  onclick="guardarClave()">Guardar</button>
+    <button style="background:#30A72A;" onclick="guardarClave()">Guardar</button>
   </div>
 
   <div class="bloque">
@@ -75,13 +76,13 @@ th{ background: #512BD4; color: white; }
 </div>
 
 <table>
-  <thead><tr><th>Grupo</th><th>Supervisor</th><th>Usuarios</th></tr></thead>
+  <thead><tr><th>Grupo</th><th>Supervisor</th><th>Usuarios</th><th>Acciones</th></tr></thead>
   <tbody id="tabla"></tbody>
 </table>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-import { getDatabase, ref, get, child, update, push, set } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+import { getDatabase, ref, get, child, update, push, set, onValue, remove } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
 const app = initializeApp({
   apiKey:"TU_API_KEY",
@@ -115,7 +116,8 @@ async function cargarUsuarios() {
       combos.forEach(id => document.getElementById(id).add(new Option(texto, idReal)));
     }
     if (u.TipoUsuario === "Supervisor" || u.tipo === "Supervisor") {
-      document.getElementById("supervisorGrupo").add(new Option(u.NombreUsuario, idReal));
+      // POR ESTO (para que el valor sea el nombre):
+  document.getElementById("supervisorGrupo").add(new Option(u.NombreUsuario, u.NombreUsuario));;
     }
   }
   document.getElementById("usuariosGrupo").add(new Option("🔥 TODOS", "TODOS"));
@@ -141,7 +143,7 @@ window.bloquearUsuario = async () => {
     if (confirm(`¿Desea ${nuevoEstado ? 'ACTIVAR' : 'BLOQUEAR'} al usuario?`)) {
       await update(ref(db, `Usuarios/${key}`), { Activo: nuevoEstado });
       alert("Estado actualizado");
-      location.reload();
+      cargarUsuarios();
     }
   }
 };
@@ -187,7 +189,46 @@ window.guardarGrupo = async () => {
   lista = []; render();
 };
 
-cargarUsuarios();
+/* =========================
+   CARGAR TABLA DE GRUPOS
+========================= */
+function cargarTablaGrupos() {
+  const gruposRef = ref(db, "Grupos");
+  onValue(gruposRef, (snapshot) => {
+    const gruposData = snapshot.val();
+    const tbody = document.getElementById("tabla");
+    tbody.innerHTML = "";
+    if (gruposData) {
+      for (const key in gruposData) {
+        const g = gruposData[key];
+        const nombresUsuarios = g.usuarios.map(id => {
+          const u = Object.values(data).find(user => String(user.Id) === String(id));
+          return u ? u.NombreUsuario : id;
+        }).join(", ");
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${g.nombreGrupo || key}</td>
+          <td>${g.supervisor}</td>
+          <td style="font-size:12px">${nombresUsuarios}</td>
+          <td><button class="btn-borrar" onclick="eliminarGrupo('${key}')">Eliminar</button></td>
+        `;
+        tbody.appendChild(tr);
+      }
+    } else {
+      tbody.innerHTML = "<tr><td colspan='4'>No hay grupos registrados</td></tr>";
+    }
+  });
+}
+
+window.eliminarGrupo = async (key) => {
+  if(confirm("¿Eliminar este grupo?")) {
+    await remove(ref(db, `Grupos/${key}`));
+  }
+};
+
+cargarUsuarios().then(() => {
+  cargarTablaGrupos();
+});
 </script>
 </body>
 </html>
