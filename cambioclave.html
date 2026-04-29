@@ -82,7 +82,7 @@ th{ background: #512BD4; color: white; }
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-import { getDatabase, ref, get, child, update, push, set, onValue, remove } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+import { getDatabase, ref, get, child, update, push, onValue, remove } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
 const app = initializeApp({
   apiKey:"TU_API_KEY",
@@ -90,34 +90,33 @@ const app = initializeApp({
 });
 const db = getDatabase(app);
 
-  let tiempoInactivo;
-const LIMITE = 10 * 60 * 1000;
-
-function resetTimer(){
-  clearTimeout(tiempoInactivo);
-  tiempoInactivo = setTimeout(cerrarSesionAuto, LIMITE);
-}
-
-function cerrarSesionAuto(){
-  localStorage.removeItem("usuarioLogueado");
-  alert("Sesión cerrada por inactividad");
-  window.location.href = "index.html";
-}
-
-
 let data = {};
 let lista = [];
-const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
 
+// 🔥 USUARIO LOGUEADO
+const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
+const tipo = user?.tipo?.toLowerCase();
+
+// 🔐 BLOQUEO SI NO HAY LOGIN
+if(!user){
+  window.location.replace("index.html");
+}
+
+// MENU
 window.toggleMenu = () => document.getElementById("menuDropdown").classList.toggle("show");
 
+// INFO USUARIO
 setInterval(() => {
   document.getElementById("userInfo").innerHTML = `${user.nombre} - ${new Date().toLocaleString()}`;
 }, 1000);
 
+// =====================
+// CARGAR USUARIOS
+// =====================
 async function cargarUsuarios() {
   const snap = await get(child(ref(db), "Usuarios"));
   data = snap.val() || {};
+
   const combos = ["usuariosClave", "usuariosBloqueo", "usuariosGrupo"];
   combos.forEach(id => document.getElementById(id).innerHTML = "");
   document.getElementById("supervisorGrupo").innerHTML = "";
@@ -127,22 +126,36 @@ async function cargarUsuarios() {
     const idReal = u.Id;
     const texto = `${u.NombreUsuario} ${u.Activo ? '' : '(BLOQUEADO)'}`;
 
-    if (user.tipo === "Administrador" || u.Asignado === user.nombre) {
-      combos.forEach(id => document.getElementById(id).add(new Option(texto, idReal)));
+    // 🔥 FILTRO USUARIOS
+    if (tipo === "administrador" || u.Asignado === user.nombre) {
+      combos.forEach(id => {
+        document.getElementById(id).add(new Option(texto, idReal));
+      });
     }
+
+    // 🔥 FILTRO SUPERVISORES
     if (u.TipoUsuario === "Supervisor" || u.tipo === "Supervisor") {
-      // POR ESTO (para que el valor sea el nombre):
-  document.getElementById("supervisorGrupo").add(new Option(u.NombreUsuario, u.NombreUsuario));;
+      if (tipo === "administrador" || u.Asignado === user.nombre) {
+        document.getElementById("supervisorGrupo").add(
+          new Option(u.NombreUsuario, u.NombreUsuario)
+        );
+      }
     }
   }
+
   document.getElementById("usuariosGrupo").add(new Option("🔥 TODOS", "TODOS"));
 }
 
+// =====================
+// GUARDAR CLAVE
+// =====================
 window.guardarClave = async () => {
   const id = document.getElementById("usuariosClave").value;
   const clave = document.getElementById("nuevaClave").value.trim();
   if (!clave) return alert("Escriba la nueva clave");
+
   const key = Object.keys(data).find(k => String(data[k].Id) === String(id));
+
   if (key && confirm("¿Cambiar clave?")) {
     await update(ref(db, `Usuarios/${key}`), { Clave: clave });
     alert("Clave actualizada");
@@ -150,11 +163,16 @@ window.guardarClave = async () => {
   }
 };
 
+// =====================
+// BLOQUEAR
+// =====================
 window.bloquearUsuario = async () => {
   const id = document.getElementById("usuariosBloqueo").value;
   const key = Object.keys(data).find(k => String(data[k].Id) === String(id));
+
   if (key) {
     const nuevoEstado = !data[key].Activo;
+
     if (confirm(`¿Desea ${nuevoEstado ? 'ACTIVAR' : 'BLOQUEAR'} al usuario?`)) {
       await update(ref(db, `Usuarios/${key}`), { Activo: nuevoEstado });
       alert("Estado actualizado");
@@ -163,70 +181,110 @@ window.bloquearUsuario = async () => {
   }
 };
 
+// =====================
+// AGREGAR USUARIOS A GRUPO
+// =====================
 window.agregarUsuarioGrupo = () => {
   const id = document.getElementById("usuariosGrupo").value;
+
   if (id === "TODOS") {
-    lista = Object.values(data).filter(u => user.tipo === "Administrador" || u.Asignado === user.nombre).map(u => String(u.Id));
+    lista = Object.values(data)
+      .filter(u => tipo === "administrador" || u.Asignado === user.nombre)
+      .map(u => String(u.Id));
   } else if (!lista.includes(String(id))) {
     lista.push(String(id));
   }
+
   render();
 };
 
+// =====================
+// QUITAR USUARIO
+// =====================
 window.quitarUsuario = (id) => {
   lista = lista.filter(x => String(x) !== String(id));
   render();
 };
 
+// =====================
+// RENDER LISTA
+// =====================
 function render() {
   const listaHtml = document.getElementById("listaGrupo");
   listaHtml.innerHTML = "";
+
   lista.forEach(id => {
     const u = Object.values(data).find(x => String(x.Id) === String(id));
     const li = document.createElement("li");
-    li.innerHTML = `<span>${u?.NombreUsuario || id}</span><button onclick="quitarUsuario('${id}')">×</button>`;
+
+    li.innerHTML = `
+      <span>${u?.NombreUsuario || id}</span>
+      <button onclick="quitarUsuario('${id}')">×</button>
+    `;
+
     listaHtml.appendChild(li);
   });
 }
 
+// =====================
+// GUARDAR GRUPO
+// =====================
 window.guardarGrupo = async () => {
-  const supId = document.getElementById("supervisorGrupo").value;
-  const supNom = document.getElementById("supervisorGrupo").options[document.getElementById("supervisorGrupo").selectedIndex].text;
+  const sup = document.getElementById("supervisorGrupo");
+
+  const supNom = sup.options[sup.selectedIndex]?.text;
+
   if (lista.length === 0) return alert("Agregue usuarios");
+
   const nuevoGrupo = {
     supervisor: supNom,
-    supervisorId: supId,
     usuarios: lista,
     nombreGrupo: "Grupo_" + Date.now()
   };
+
   await push(ref(db, "Grupos"), nuevoGrupo);
+
   alert("Grupo creado con éxito");
-  lista = []; render();
+
+  lista = [];
+  render();
 };
 
-/* =========================
-   CARGAR TABLA DE GRUPOS
-========================= */
+// =====================
+// TABLA DE GRUPOS (FILTRADA)
+// =====================
 function cargarTablaGrupos() {
   const gruposRef = ref(db, "Grupos");
+
   onValue(gruposRef, (snapshot) => {
     const gruposData = snapshot.val();
     const tbody = document.getElementById("tabla");
+
     tbody.innerHTML = "";
+
     if (gruposData) {
       for (const key in gruposData) {
         const g = gruposData[key];
+
+        // 🔥 FILTRO POR ROL
+        if (tipo !== "administrador" && g.supervisor !== user.nombre) {
+          continue;
+        }
+
         const nombresUsuarios = g.usuarios.map(id => {
           const u = Object.values(data).find(user => String(user.Id) === String(id));
           return u ? u.NombreUsuario : id;
         }).join(", ");
+
         const tr = document.createElement("tr");
+
         tr.innerHTML = `
           <td>${g.nombreGrupo || key}</td>
           <td>${g.supervisor}</td>
           <td style="font-size:12px">${nombresUsuarios}</td>
           <td><button class="btn-borrar" onclick="eliminarGrupo('${key}')">Eliminar</button></td>
         `;
+
         tbody.appendChild(tr);
       }
     } else {
@@ -235,12 +293,16 @@ function cargarTablaGrupos() {
   });
 }
 
+// =====================
+// ELIMINAR GRUPO
+// =====================
 window.eliminarGrupo = async (key) => {
   if(confirm("¿Eliminar este grupo?")) {
     await remove(ref(db, `Grupos/${key}`));
   }
 };
 
+// INIT
 cargarUsuarios().then(() => {
   cargarTablaGrupos();
 });
