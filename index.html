@@ -84,12 +84,12 @@ if (
     }
 
     if (acceso) {
-      localStorage.setItem("usuarioLogueado", JSON.stringify({
-      nombre: usuario.toLowerCase(),
-     tipo: tipoUsuario,
-     asignado: asignado,
-     id: idUsuario
-    }));
+     localStorage.setItem("usuarioLogueado", JSON.stringify({
+      nombre: usuario,
+      tipo: tipoUsuario,
+      asignado: asignado,
+      id: idUsuario
+     }));
 
       // 🔹 Alert opcional para depuración del tipo de usuario
       // alert("TIPO USUARIO LOGUEADO: " + tipoUsuario);
