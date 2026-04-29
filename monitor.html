@@ -176,13 +176,13 @@ function resetTimer(){
 }
 function cerrarSesionAuto(){
   localStorage.removeItem("usuarioLogueado");
-  window.location.href = "login.html";
+  window.location.href = "index.html";
 }
 ["click","mousemove","keypress","touchstart"].forEach(evt => document.addEventListener(evt, resetTimer));
 resetTimer();
 
 const usuarioGuardado = JSON.parse(localStorage.getItem("usuarioLogueado"));
-if(!usuarioGuardado) window.location.href = "login.html";
+if(!usuarioGuardado) window.location.href = "index.html";
 
 const usuarioLogueado = usuarioGuardado.nombre || "Invitado";
 const usuarioAsignado = usuarioGuardado.nombre || null;
