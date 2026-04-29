@@ -28,7 +28,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 window.login = async function() {
-  const usuario = document.getElementById("usuario").value.trim();
+  const usuario = document.getElementById("usuario").value.trim().toLowerCase();
   const password = document.getElementById("password").value.trim();
 
   // 🔹 Validar campos vacíos
@@ -51,7 +51,7 @@ window.login = async function() {
       for (let key in data) {
         const u = data[key];
 
- if (u.NombreUsuario.toLowerCase() === usuario.toLowerCase()) {
+   if (u.NombreUsuario.toLowerCase() === usuario.toLowerCase()) {
     usuarioEncontrado = true;
 
    if (u.Clave === password && u.Activo === true) {
@@ -85,11 +85,11 @@ if (
 
     if (acceso) {
       localStorage.setItem("usuarioLogueado", JSON.stringify({
-        nombre: usuario,
-        tipo: tipoUsuario,
-        asignado: asignado,
-        id: idUsuario // <--- GUARDAMOS EL ID AQUÍ
-      }));
+      nombre: usuario.toLowerCase(),
+     tipo: tipoUsuario,
+     asignado: asignado,
+     id: idUsuario
+    }));
 
       // 🔹 Alert opcional para depuración del tipo de usuario
       // alert("TIPO USUARIO LOGUEADO: " + tipoUsuario);
