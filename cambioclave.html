@@ -48,7 +48,11 @@ th{ background: #512BD4; color: white; }
 </div>
 
 <div class="user-info" id="userInfo"></div>
-<div class="titulo-bar">Gestión de Usuarios</div>
+<div class="titulo-bar">Gestión de Usuarios</div> 
+
+<button id="btnRegistro" style="display:none; background:orangered; width:96.5%; margin:23px;" onclick="location.href='registrousuario.html'">
+  ➕ Registrar Usuario
+</button>
 
 <div class="form-container">
   <div class="bloque">
@@ -62,6 +66,7 @@ th{ background: #512BD4; color: white; }
     <h3>Bloqueo</h3>
     <select id="usuariosBloqueo"></select>
     <button style="background:#F27257;" onclick="bloquearUsuario()">Bloquear/Desbloquear</button>
+
   </div>
 
   <div class="bloque grande">
@@ -180,6 +185,12 @@ window.bloquearUsuario = async () => {
     }
   }
 };
+
+//const user = JSON.parse(localStorage.getItem("usuarioLogueado"));
+
+if(user && user.nombre.toLowerCase() === "m123"){
+  document.getElementById("btnRegistro").style.display = "block";
+}
 
 // =====================
 // AGREGAR USUARIOS A GRUPO
