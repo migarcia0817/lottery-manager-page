@@ -279,15 +279,30 @@ document.getElementById("asignarGrupoBtn").addEventListener("click", async ()=>{
 async function cargarTablaGrupo(){
   const tbody = document.getElementById("tbodyGrupos");
   tbody.innerHTML = "<tr><td colspan='6'>Cargando...</td></tr>";
+
+  // 🔥 TRAER USUARIOS (AQUÍ ESTÁ LA CLAVE)
+  const snapUsuarios = await get(child(ref(db),"Usuarios"));
+  const dataUsuarios = snapUsuarios.val() || {};
+
+  let mapa = {};
+  for(let k in dataUsuarios){
+    mapa[dataUsuarios[k].Id] = dataUsuarios[k].NombreUsuario;
+  }
+
+  // 🔥 TRAER GRUPOS
   const snap = await get(child(ref(db),"GruposVentas"));
   const data = snap.val() || {};
+
   tbody.innerHTML = "";
 
   const tipoMap = { "Qui":"Quiniela", "Pale":"Pale", "Trip":"Tripleta", "Sp":"SuperPale" };
 
   for(const key in data){
     const grupo = data[key];
-    const nombres = grupo.Usuarios.map(id=>usuariosIdMap[id] || id);
+
+    // 🔥 AQUÍ CONVIERTE ID → NOMBRE
+    const nombres = grupo.Usuarios.map(id => mapa[id] || id);
+
     tbody.innerHTML += `<tr>
       <td>${nombres.join(', ')}</td>
       <td>${tipoMap[grupo.TipoJugada]}</td>
@@ -298,9 +313,10 @@ async function cargarTablaGrupo(){
     </tr>`;
   }
 
-  if(tbody.innerHTML==="") tbody.innerHTML="<tr><td colspan='6'>No hay grupos asignados</td></tr>";
+  if(tbody.innerHTML===""){
+    tbody.innerHTML="<tr><td colspan='6'>No hay grupos asignados</td></tr>";
+  }
 }
-
 /* 🔹 Eliminar grupo */
 window.eliminarGrupo = async function(key){
   if(!confirm("¿Seguro que quieres eliminar este grupo?")) return;
