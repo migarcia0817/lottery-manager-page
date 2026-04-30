@@ -70,7 +70,8 @@ button.btn-eliminar { background:#dc3545; color:white; padding:5px 10px; border:
 <div id="tablaGrupos">
   <div id="tablaHeader">
     <span id="grupoLabel">Grupo: </span>
-   <button style="width:15% ;height: 35px; font-weight:bold ; background: #6c757d;;" onclick="window.location.href='loterias.html'">Regresar</button>
+    <button style="width:15% ;height: 35px; font-weight:bold ; background: #6c757d;;" onclick="window.location.href='loterias.html'">Regresar</button>
+  </div>
   <h2>Grupos con Límite Compartido</h2>
   <table>
     <thead>
@@ -109,7 +110,7 @@ function resetTimer(){
 function cerrarSesionAuto(){
   localStorage.removeItem("usuarioLogueado");
   alert("Sesión cerrada por inactividad");
-  window.location.href = "login.html";
+  window.location.href = "index.html";
 }
 
 ["click","mousemove","keypress","touchstart"].forEach(evt=>{
@@ -129,6 +130,7 @@ document.getElementById("userInfo").innerHTML = "Usuario: " + usuarioLogueado + 
 document.getElementById("grupoLabel").textContent = "Grupo: " + usuarioLogueado;
 
 
+
 /* 🔹 Campos y contenedores */
 const comboUsuario = document.getElementById("comboUsuario");
 const tipoJugadaSelect = document.getElementById("tipoJugada");
@@ -142,34 +144,26 @@ let usuariosGrupo = [];
 let usuariosIdMap = {}; // 🔹 almacenar ID de Firebase
 
 /* 🔹 Cargar usuarios */
-document.getElementById("agregarUsuarioBtn").addEventListener("click", ()=>{
-  const seleccion = comboUsuario.value;
+async function cargarUsuarios(){
+  const snap = await get(child(ref(db),"Usuarios"));
+  const data = snap.val() || {};
   
-  if(!seleccion) return;
+  comboUsuario.innerHTML = "<option value=''>Seleccione Usuario</option>";
+  // 🔥 AGREGAR ESTA LÍNEA AQUÍ:
+  comboUsuario.innerHTML += "<option value='TODOS_VISIBLES'>TODOS</option>";
+  
+  usuariosIdMap = {};
 
-  if(seleccion === "TODOS_VISIBLES"){
-    // Recorremos el combo para agregar a todos los que NO estén ya en la lista
-    for (let i = 0; i < comboUsuario.options.length; i++) {
-      const id = comboUsuario.options[i].value;
-      // Saltamos las opciones vacías o de mando
-      if(id !== "" && id !== "TODOS_VISIBLES"){
-        if(!usuariosGrupo.includes(id)){
-          usuariosGrupo.push(id);
-        }
-      }
+  for(const uid in data){
+    const u = data[uid];
+    if(tipoUsuarioLogueado === "Administrador" || u.Asignado === usuarioLogueado){
+      comboUsuario.innerHTML += `<option value="${u.Id}">${u.NombreUsuario}</option>`;
+      usuariosIdMap[u.Id] = u.NombreUsuario;
     }
-    renderUsuariosGrupo();
-  } else {
-    // Agregar uno por uno normalmente
-    if(usuariosGrupo.includes(seleccion)){ alert("Usuario ya agregado"); return; }
-    usuariosGrupo.push(seleccion);
-    renderUsuariosGrupo();
   }
-});
-
+}
 cargarUsuarios();
 
-/* 🔹 Agregar usuario al grupo */
 /* 🔹 Agregar usuario al grupo (Individual o Masivo) */
 document.getElementById("agregarUsuarioBtn").addEventListener("click", () => {
   const seleccion = comboUsuario.value;
@@ -223,6 +217,7 @@ function renderUsuariosGrupo() {
     grupoContainer.appendChild(div);
   });
 }
+
 
 /* 🔹 Validación de número */
 function validarNumero(numero, tipo){
