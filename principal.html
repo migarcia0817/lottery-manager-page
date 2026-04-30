@@ -81,8 +81,29 @@
     padding:10px; 
   }
 
-  .date-picker { display:flex; gap:10px; }
+.date-picker {
+  display: flex;
+  border-radius: 10px;
+  overflow: hidden;
+  height: 35px; /* mejor un poco más alto para que se vea bien */
+}
 
+/* INPUT */
+.date-picker input {
+  border: none;
+  outline: none;
+  padding: 0 10px;
+  flex: 1;
+}
+
+/* BOTÓN */
+.date-picker button {
+  border: none;
+  background: #00a135;
+  color: white;
+  padding: 0 15px;
+  cursor: pointer;
+}
   .tabla-container { 
     width:95%; 
     margin:20px auto; 
