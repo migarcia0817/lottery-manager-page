@@ -176,6 +176,7 @@ resetTimer();
 const userData = JSON.parse(localStorage.getItem("usuarioLogueado"));
 const usuarioLogueado = userData ? userData.nombre : "Invitado";
 const tipoUsuarioLogueado = userData ? userData.tipo : "";
+const usuarioIdLogueado = userData ? userData.id : "";
 
 // Usamos Date directamente para evitar errores si hoyLocal() no ha cargado
 const fechaHoy = new Date().toISOString().split('T')[0]; 
@@ -314,14 +315,18 @@ document.getElementById("asignarGrupoBtn").addEventListener("click", async ()=>{
   if(isNaN(limite) || limite<=0) limite = 100;
 
   const groupKey = `GRUPO_${Date.now()}`;
-  const data = {
-    Key: groupKey,
-    Usuarios: usuariosGrupo,
-    TipoJugada: tipoJugada,
-    Numero: numero,
-    LimiteRestante: limite,
-    Bloqueado: bloqueado
-  };
+ const data = {
+  Key: groupKey,
+  Usuarios: usuariosGrupo,
+  TipoJugada: tipoJugada,
+  Numero: numero,
+  LimiteRestante: limite,
+  Bloqueado: bloqueado,
+
+  // 🔥 NUEVO
+  CreadoPor: usuarioLogueado,
+  CreadoPorId: usuarioIdLogueado
+};
 
   try{
     await set(ref(db,'GruposVentas/'+groupKey), data);
@@ -339,7 +344,7 @@ async function cargarTablaGrupo(){
   const tbody = document.getElementById("tbodyGrupos");
   tbody.innerHTML = "<tr><td colspan='6'>Cargando...</td></tr>";
 
-  // 🔥 TRAER USUARIOS (AQUÍ ESTÁ LA CLAVE)
+  // 🔥 TRAER USUARIOS
   const snapUsuarios = await get(child(ref(db),"Usuarios"));
   const dataUsuarios = snapUsuarios.val() || {};
 
@@ -359,7 +364,14 @@ async function cargarTablaGrupo(){
   for(const key in data){
     const grupo = data[key];
 
-    // 🔥 AQUÍ CONVIERTE ID → NOMBRE
+    // 🔥 FILTRO POR USUARIO
+   if(tipoUsuarioLogueado !== "Administrador"){
+  if(grupo.CreadoPorId !== usuarioIdLogueado){
+    continue;
+  }
+}
+
+    // 🔥 CONVERTIR ID → NOMBRE
     const nombres = grupo.Usuarios.map(id => mapa[id] || id);
 
     tbody.innerHTML += `<tr>
