@@ -248,7 +248,7 @@ async function cargarMonitor() {
     else if (tipoUsuario === "Supervisor" && permitidos.includes(idU)) ok = true;
     else if (tipoUsuario === "ADM" && (u.Asignado === usuarioAsignado || u.NombreUsuario === usuarioLogueado)) ok = true;
 
-    if (ok) resumen[idU] = { nombre: u.NombreUsuario || "Sin nombre", ventas: 0, premios: 0 };
+  if (ok) resumen[idU] = {nombre: u.NombreUsuario || "Sin nombre", alias: u.Alias || "", ventas: 0, premios: 0 };
   }
 
   for (const clave in ventasData) {
@@ -273,7 +273,7 @@ async function cargarMonitor() {
       const com = r.ventas * (porc / 100);
       const bal = r.ventas - r.premios - com;
       tV += r.ventas; tP += r.premios; tC += com;
-      tbody.innerHTML += `<tr><td>${r.nombre}</td><td>${r.ventas.toFixed(2)}</td><td>${r.premios.toFixed(2)}</td><td>${porc}%</td><td>${com.toFixed(2)}</td><td style="color:${bal>=0?'green':'red'}">${bal.toFixed(2)}</td></tr>`;
+      tbody.innerHTML += `<tr><td>${r.nombre}${r.alias ? " / " + r.alias : ""}</td><td>${r.ventas.toFixed(2)}</td><td>${r.premios.toFixed(2)}</td><td>${porc}%</td><td>${com.toFixed(2)}</td><td style="color:${bal>=0?'green':'red'}">${bal.toFixed(2)}</td></tr>`;
     }
     const barra = document.getElementById("barraTotales");
     if(barra) barra.innerText = `Ventas: ${tV.toFixed(2)} | Premios: ${tP.toFixed(2)} | Balance: ${(tV-tP-tC).toFixed(2)}`;
