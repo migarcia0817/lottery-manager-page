@@ -32,13 +32,46 @@ body { margin:0; font-family: Arial, sans-serif; background:#f9f9f9; }
 table { width:95%; margin:auto; border-collapse:collapse; background:white; }
 th, td { border:1px solid #ccc; padding:6px; text-align:center; }
 th { background:#512BD4; color:white; }
+
+<style>
+.topbar {
+  background:#512BD4;
+  color:white;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:10px 20px;
+}
+
+.logo-section {
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.logo-section img {
+  height:40px;
+  width:40px;
+  object-fit:contain;
+}
+
+.logo-section span {
+  font-size:18px;
+  font-weight:bold;
+  line-height:40px;
+}
+</style>
 </style>
 </head>
 
 <body>
 
 <div class="topbar">
-  <div style="font-size: 18; font-weight: bold;">Lottery</div>
+  <div class="logo-section">
+    <img src="lote.png" alt="logo">
+    <span>Lottery</span>
+  </div>
+
   <div class="hamburger" onclick="toggleMenu()">☰</div>
 </div>
 
