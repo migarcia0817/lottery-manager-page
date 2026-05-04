@@ -146,11 +146,9 @@ async function cargarUsuarios() {
   const snap = await get(child(ref(db), "Usuarios"));
   const data = snap.val() || {};
 
-  // 1. Obtener ID y Tipo del usuario logueado
   const supervisorID = usuarioGuardado?.id || usuarioGuardado?.uid || usuarioGuardado?.Id;
   const tipo = usuarioGuardado?.tipo || "";
 
-  // 2. Si es Supervisor, buscar sus usuarios permitidos en "Grupos"
   let usuariosPermitidos = [];
   if (tipo === "Supervisor") {
     const gruposSnap = await get(child(ref(db), "Grupos"));
@@ -163,7 +161,6 @@ async function cargarUsuarios() {
     }
   }
 
-  // 3. Llenar el combo según el rol
   for (const id in data) {
     const u = data[id];
     const nombreU = u.NombreUsuario;
@@ -186,7 +183,6 @@ async function buscarVentas() {
   const hasta = document.getElementById("fechaHasta").value;
   const usuarioSel = document.getElementById("comboUsuario").value;
 
-  // Lista de usuarios que este supervisor/adm tiene permiso de ver
   const permitidos = Array.from(document.querySelectorAll("#comboUsuario option"))
     .map(o => o.value)
     .filter(v => v !== "");
@@ -194,8 +190,15 @@ async function buscarVentas() {
   const tbody = document.getElementById("tablaVentas");
   tbody.innerHTML = "<tr><td colspan='5'>Cargando...</td></tr>";
 
-  const snap = await get(child(ref(db), "ventas"));
-  const ventas = snap.val() || {};
+  // 🔥 CARGAR TODO DE UNA VEZ (CLAVE DE VELOCIDAD)
+  const [snapVentas, snapComisiones] = await Promise.all([
+    get(child(ref(db), "ventas")),
+    get(child(ref(db), "Comisiones"))
+  ]);
+
+  const ventas = snapVentas.val() || {};
+  const comisionesDB = snapComisiones.val() || {};
+
   const agrupado = {};
 
   for (const id in ventas) {
@@ -207,7 +210,6 @@ async function buscarVentas() {
 
     const usuario = v.nombreUsuario || v.NombreUsuario || "Desconocido";
 
-    // FILTRO DE SEGURIDAD: Solo ver lo que hay en el combo (excepto Admin)
     const tipo = usuarioGuardado?.tipo || "";
     if (tipo !== "Administrador" && !permitidos.includes(usuario)) continue;
     if (usuarioSel && usuario !== usuarioSel) continue;
@@ -221,10 +223,19 @@ async function buscarVentas() {
     }
 
     const venta = Number(v.totalNeto || v.TotalNeto || 0);
-    // Asumimos que comisión es un porcentaje (ej: 10 para 10%)
-    const comisionDecimal = Number(v.comision ?? v.Comision ?? 0);
-    const montoComision = (comisionDecimal > 1) ? (venta * (comisionDecimal / 100)) : (venta * comisionDecimal);
-    
+
+    // 🔥 USAR ID DIRECTO DE LA VENTA
+    const userIdVenta = String(
+      v.idUsuario || v.IdUsuario || v.usuarioId || v.UsuarioId || ""
+    );
+
+    // 🔥 SACAR COMISIÓN DIRECTO (SIN await)
+    let porcentaje = 0;
+    if (userIdVenta && comisionesDB[userIdVenta]?.porcentaje) {
+      porcentaje = Number(comisionesDB[userIdVenta].porcentaje);
+    }
+
+    const montoComision = venta * (porcentaje / 100);
     const neto = venta - montoComision - premio;
 
     agrupado[usuario].venta += venta;
@@ -259,7 +270,7 @@ async function buscarVentas() {
 function hoy() {
   const fecha = new Date();
   const yyyy = fecha.getFullYear();
-  const mm = String(fecha.getMonth() + 1).padStart(2, '0'); // Mes empieza en 0
+  const mm = String(fecha.getMonth() + 1).padStart(2, '0');
   const dd = String(fecha.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
 }
