@@ -188,7 +188,6 @@ async function cargarUsuarios() {
   const combo = document.getElementById("comboUsuario");
   combo.innerHTML = "<option value='todos'>Todos</option>";
   
-  // Capturamos ID y Tipo para el filtro de Supervisor
   const supervisorID = usuarioGuardado?.id || usuarioGuardado?.uid || usuarioGuardado?.Id;
   const tipo = usuarioGuardado?.tipo || "";
 
@@ -196,7 +195,6 @@ async function cargarUsuarios() {
     const snap = await get(child(ref(db), "Usuarios"));
     const data = snap.val() || {};
 
-    // Si es Supervisor, obtenemos primero los miembros de su grupo
     let usuariosPermitidos = [];
     if (tipo === "Supervisor") {
       const gruposSnap = await get(child(ref(db), "Grupos"));
@@ -242,7 +240,6 @@ async function buscarVentas() {
 
   if (!desde || !hasta) { alert("Seleccione fechas"); return; }
 
-  // Creamos una lista de los usuarios que están en el combo para seguridad
   const permitidos = Array.from(document.querySelectorAll("#comboUsuario option"))
     .map(o => o.value)
     .filter(v => v !== "todos");
@@ -262,22 +259,33 @@ async function buscarVentas() {
       const v = ventas[id];
       const usuarioVenta = v.NombreUsuario || v.nombreUsuario || "Desconocido";
 
-      // Filtro de seguridad: Solo ver lo que el rol tiene permitido
       if (tipo !== "Administrador" && !permitidos.includes(usuarioVenta)) continue;
       if (usuarioSel !== "todos" && usuarioVenta !== usuarioSel) continue;
 
       const fechaRaw = v.FechaCreacion || v.fechaCreacion;
       if (!fechaRaw) continue;
 
-      // Normalizar fecha
       const fechaVenta = new Date(fechaRaw);
       const fechaStr = `${fechaVenta.getFullYear()}-${String(fechaVenta.getMonth() + 1).padStart(2, '0')}-${String(fechaVenta.getDate()).padStart(2, '0')}`;
       
       if (fechaStr < desde || fechaStr > hasta) continue;
 
       const ventaMonto = Number(v.TotalNeto || v.totalNeto || 0);
-      const comision = Number(v.Comision || v.comision || 0) * ventaMonto;
       const premio = Number(v.PremioCalculado || v.premioCalculado || v.Premio || v.premio || 0);
+
+      /* 🔥 COMISIÓN CORREGIDA */
+      let porcentaje = 0;
+
+      const userId = v.idUsuario || v.IdUsuario || v.usuarioId || v.UsuarioId;
+
+      if (userId) {
+        const comSnap = await get(child(ref(db), `Comisiones/${userId}/porcentaje`));
+        if (comSnap.exists()) {
+          porcentaje = Number(comSnap.val()) || 0;
+        }
+      }
+
+      const comision = ventaMonto * (porcentaje / 100);
       const neto = ventaMonto - premio - comision;
 
       if (!usuariosTotales[usuarioVenta]) {
@@ -297,6 +305,7 @@ async function buscarVentas() {
     } else {
       for (const usuario in usuariosTotales) {
         const v = usuariosTotales[usuario];
+
         totalVenta += v.venta;
         totalComision += v.comision;
         totalPremio += v.premio;
@@ -322,7 +331,6 @@ async function buscarVentas() {
   }
 }
 
-
 document.getElementById("btnBuscar").addEventListener("click", buscarVentas);
 document.getElementById("btnImprimir").addEventListener("click", ()=>{ window.print(); });
 
@@ -336,12 +344,10 @@ window.addEventListener("DOMContentLoaded", async ()=>{
   document.getElementById("fechaDesde").value = hoy;
   document.getElementById("fechaHasta").value = hoy;
 
-  // ⏳ ESPERAR A QUE EL SELECT QUEDE LISTO
   setTimeout(() => {
     buscarVentas(hoy, hoy);
-  }, 300); // 🔥 clave
+  }, 300);
 });
-
 </script>
 
 </body>
