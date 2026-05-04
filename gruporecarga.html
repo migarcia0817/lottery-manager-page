@@ -7,24 +7,43 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-body { margin:0; font-family: Arial; background:#f9f9f9; }
-.topbar { background:#512BD4; color:white; display:flex; justify-content:space-between; padding:10px 20px; flex-wrap:wrap; }
-.user-info { background:#e0d4ff; padding:5px 20px; text-align:right; }
-.titulo { width:95%; margin:20px auto; background:#512BD4; color:white; padding:10px; text-align:center; border-radius:5px; font-weight:bold; }
-.filtros { width:95%; margin:10px auto; display:flex; gap:10px; flex-wrap:wrap; align-items: center; }
-.filtros select, .filtros input, .filtros button { padding:10px; border-radius:5px; border:1px solid #ccc; flex:1 1 150px; min-width:120px; }
-.filtros button { background:#28a745; color:white; cursor:pointer; font-weight: bold; }
-#grupoContainer { width:95%; margin:10px auto; background:#f1f1f1; padding:10px; border-radius:5px; min-height:40px; display:flex; flex-wrap:wrap; gap:5px; border: 1px dashed #512BD4; }
-.usuarioItem { background:#512BD4; color:white; padding:5px 10px; border-radius:5px; display:flex; align-items:center; gap:5px; font-size: 14px; }
-.usuarioItem button { background:#dc3545; border:none; padding:2px 6px; border-radius:3px; cursor:pointer; color:white; }
-#tablaGrupos { width:95%; margin:20px auto; background:white; padding:15px; border-radius:5px; overflow-x:auto; box-shadow: 0px 0px 10px rgba(0,0,0,0.1); }
-#tablaGrupos h2 { text-align:center; color:#512BD4; margin-bottom:15px; }
-table { width:100%; border-collapse:collapse; margin-top:10px; }
-th, td { border:1px solid #ccc; padding:10px; text-align:center; }
-th { background:#512BD4; color:white; }
-button.btn-eliminar { background:#dc3545; color:white; padding:5px 10px; border:none; border-radius:5px; cursor:pointer; }
+/* Estilos Base */
+body { margin:0; font-family: Arial, sans-serif; background:#f9f9f9; }
+.topbar { background:#512BD4; color:white; display:flex; justify-content:space-between; padding:10px 20px; flex-wrap:wrap; align-items: center; }
+.user-info { background:#e0d4ff; padding:8px 20px; text-align:right; font-size: 14px; }
+.titulo { width:95%; max-width: 1200px; margin:20px auto; background:#512BD4; color:white; padding:12px; text-align:center; border-radius:5px; font-weight:bold; box-sizing: border-box; }
+
+/* Formulario Responsivo */
+#grupoForm { width:95%; max-width: 1200px; margin: 0 auto; }
+.filtros { width:100%; margin:10px auto; display:flex; gap:10px; flex-wrap:wrap; align-items: center; box-sizing: border-box; }
+.filtros select, .filtros input, .filtros button { padding:10px; border-radius:5px; border:1px solid #ccc; flex:1 1 200px; min-width:150px; font-size: 14px; box-sizing: border-box; }
+.filtros button { background:#28a745; color:white; cursor:pointer; font-weight: bold; border: none; }
+
+/* Contenedor de Usuarios Seleccionados */
+#grupoContainer { width:100%; margin:10px auto; background:#f1f1f1; padding:15px; border-radius:5px; min-height:40px; display:flex; flex-wrap:wrap; gap:8px; border: 1px dashed #512BD4; box-sizing: border-box; }
+.usuarioItem { background:#512BD4; color:white; padding:6px 12px; border-radius:20px; display:flex; align-items:center; gap:8px; font-size: 13px; }
+.usuarioItem button { background:#dc3545; border:none; padding:2px 6px; border-radius:3px; cursor:pointer; color:white; font-weight: bold; }
+
+/* Tabla Responsiva */
+#tablaGrupos { width:95%; max-width: 1200px; margin:20px auto; background:white; padding:15px; border-radius:5px; box-shadow: 0px 0px 10px rgba(0,0,0,0.1); box-sizing: border-box; }
+#tablaGrupos h2 { text-align:center; color:#512BD4; margin-bottom:15px; font-size: 1.5rem; }
+.table-responsive { width: 100%; overflow-x: auto; } /* Contenedor para scroll en móvil */
+
+table { width:100%; border-collapse:collapse; margin-top:10px; min-width: 600px; }
+th, td { border:1px solid #eee; padding:12px; text-align:center; font-size: 14px; }
+th { background:#512BD4; color:white; font-weight: normal; }
+
+button.btn-eliminar { background:#dc3545; color:white; padding:6px 12px; border:none; border-radius:5px; cursor:pointer; }
 .status { margin-top:10px; color:green; font-weight:bold; text-align:center; }
-@media(max-width:768px){ .filtros { flex-direction: column; } }
+
+/* Ajustes para Celular */
+@media(max-width:768px){
+  .topbar { justify-content: center; text-align: center; padding: 15px; }
+  .user-info { text-align: center; }
+  .filtros { flex-direction: column; }
+  .filtros select, .filtros input, .filtros button { width: 100%; flex: none; }
+  #grupoForm h2 { margin-left: 0 !important; text-align: center; }
+}
 </style>
 </head>
 
@@ -41,7 +60,7 @@ button.btn-eliminar { background:#dc3545; color:white; padding:5px 10px; border:
     <input type="password" id="grupoPass" placeholder="Password de Grupo">
     <select id="comboUsuariosGrupo"><option value="">Cargando Usuarios...</option></select>
     <button type="button" id="agregarUsuarioBtn" style="background: #512BD4;">Añadir al Grupo</button>
-    <button type="button" id="guardarGrupoBtn">Guardar Grupo en Firebase</button>
+    <button type="button" id="guardarGrupoBtn">Guardar Grupo en</button>
   </div>
 
   <div id="grupoContainer">
@@ -52,19 +71,21 @@ button.btn-eliminar { background:#dc3545; color:white; padding:5px 10px; border:
 
 <div id="tablaGrupos">
   <h2>Grupos Existentes</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>ID Grupo</th>
-        <th>Supervisor</th>
-        <th>Usuario Acceso</th>
-        <th>Integrantes (IDs)</th>
-        <th>Acciones</th>
-      </tr>
-    </thead>
-    <tbody id="tbodyGrupos"></tbody>
-  </table>
-  <div style="text-align: right; margin-top: 10px;">
+  <div class="table-responsive">
+    <table>
+      <thead>
+        <tr>
+          <th>ID Grupo</th>
+          <th>Supervisor</th>
+          <th>Usuario Acceso</th>
+          <th>Integrantes (IDs)</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="tbodyGrupos"></tbody>
+    </table>
+  </div>
+  <div style="text-align: right; margin-top: 20px;">
     <button style="padding:10px 20px; background:#6c757d; color:white; border:none; border-radius:5px; cursor:pointer;" onclick="window.location.href='principal.html'">Regresar</button>
   </div>
 </div>
@@ -92,7 +113,7 @@ function cerrarSesionAuto(){
   localStorage.removeItem("usuarioLogueado");
   alert("Sesión cerrada por inactividad");
   window.location.href = "index.html";
-}  
+}
 
 const userData = JSON.parse(localStorage.getItem("usuarioLogueado"));
 if (!userData || userData.tipo !== "Administrador") {
@@ -123,11 +144,8 @@ async function cargarUsuarios() {
     for (const uid in data) {
       const u = data[uid];
       const nombreMostrar = u.NombreUsuario || u.Nombre || "Sin nombre";
-      
-      // EXTRAEMOS TU ID PERSONALIZADO (ej: 670)
       const idInterno = u.Id || uid; 
       usuariosDataMap[idInterno] = nombreMostrar;
-
       const tipoUser = (u.TipoUsuario || u.tipo || u.Tipo || "").toString().toUpperCase();
 
       if (tipoUser === "ADM") {
@@ -140,10 +158,9 @@ async function cargarUsuarios() {
 }
 
 document.getElementById("agregarUsuarioBtn").addEventListener("click", () => {
-  const id = comboUsuariosGrupo.value; // Este valor ahora es el Id interno (ej: 670)
+  const id = comboUsuariosGrupo.value; 
   if (!id) return;
   if (seleccionadosIds.includes(id)) return alert("Ya está en la lista");
-
   seleccionadosIds.push(id);
   renderSeleccionados();
 });
@@ -184,7 +201,7 @@ document.getElementById("guardarGrupoBtn").addEventListener("click", async () =>
     supervisorNombre: usuariosDataMap[supervisorId],
     usuarioAcceso: userNom,
     password: pass,
-    integrantes: seleccionadosIds, // GUARDA LA LISTA DE IDs NUMÉRICOS
+    integrantes: seleccionadosIds,
     fechaCreacion: new Date().toISOString()
   };
 
@@ -202,25 +219,27 @@ async function cargarTablaGrupos() {
 
   for (const key in data) {
     const g = data[key];
-    const nombresIntegrantes = (g.integrantes || []).map(id => usuariosDataMap[id] || id).join(", ");
-    
     const tr = document.createElement("tr");
+
+    // MAPEADO: Convierte los IDs de la base de datos a Nombres reales
+    const nombresIntegrantes = (g.integrantes || []).map(id => usuariosDataMap[id] || id).join(", ");
+
     tr.innerHTML = `
-      <td style="font-size:10px">${g.idGrupo.substring(0,8)}</td>
-      <td>${g.supervisorNombre}</td>
+      <td>${g.idGrupo.substring(0, 6)}...</td>
+      <td>${g.supervisorNombre || "Sin nombre"}</td>
       <td>${g.usuarioAcceso}</td>
-      <td style="font-size:11px">${nombresIntegrantes}</td>
+      <td>${nombresIntegrantes}</td>
       <td><button class="btn-eliminar" onclick="eliminarGrupo('${key}')">Eliminar</button></td>
     `;
     tbodyGrupos.appendChild(tr);
   }
 }
 
+
 window.eliminarGrupo = async (id) => {
-  if (confirm("¿Eliminar este grupo?")) {
+    if(!confirm("¿Eliminar este grupo?")) return;
     await remove(ref(db, `GruposRecarga/${id}`));
-    cargarTablaGrupos();
-  }
+    location.reload();
 };
 
 cargarUsuarios();
