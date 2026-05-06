@@ -88,6 +88,8 @@ th { background:#512BD4; color:white; }
     <thead>
       <tr>
         <th>Número</th>
+        <th>Tipo</th>
+        <th>Lotería</th>
         <th>Vendido</th>
         <th>Disponible</th>
       </tr>
@@ -145,7 +147,7 @@ function resetTimer(){
 function cerrarSesionAuto(){
   localStorage.removeItem("usuarioLogueado");
   alert("Sesión cerrada por inactividad");
-  window.location.href = "login.html";
+  window.location.href = "index.html";
 }
 
 ["click","mousemove","keypress","touchstart"].forEach(evt=>{
@@ -158,8 +160,10 @@ const userData = JSON.parse(localStorage.getItem("usuarioLogueado"));
 
 // 🔥 BLOQUEO TOTAL SI NO HAY SESIÓN
 if(!userData){
-  window.location.href = "login.html";
+  window.location.href = "index.html";
 }
+
+
 
 // ✅ ya seguro existe
 const usuarioLogueado = userData.nombre;
@@ -223,11 +227,11 @@ async function cargarUsuarios(){
 
 // 🔍 buscar ventas (FIX COMPLETO)
 
+
 async function buscarVentas(){
 
   const usuarioId = document.getElementById("comboUsuario").value;
 
-  // 🔥 ACTUALIZA BARRA SIEMPRE
   await cargarLimitesBarra(usuarioId);
 
   const fechaSeleccionada = document.getElementById("fechaVentas").value;
@@ -243,7 +247,7 @@ async function buscarVentas(){
   }
 
   const tbody = document.getElementById("tablaNumeros");
-  tbody.innerHTML = "<tr><td colspan='3'>Cargando...</td></tr>";
+  tbody.innerHTML = "<tr><td colspan='5'>Cargando...</td></tr>";
 
   try{
 
@@ -254,9 +258,21 @@ async function buscarVentas(){
     const limitesDB = snapLim.val() || {};
 
     let acumulado = {};
-    for(let i=0;i<100;i++){
-      acumulado[i.toString().padStart(2,"0")] = 0;
-    }
+
+    const keyGen = (num, lot) => `${num}_${lot}`;
+
+    // 🔥 FUNCIÓN CENTRAL PARA LOTERÍAS (IMPORTANTE)
+    const obtenerLoterias = (v, q) => {
+
+      if (Array.isArray(q?.loterias)) return q.loterias;
+
+      if (typeof v?.loteriasNormales === "string")
+        return v.loteriasNormales.split(",").map(x => x.trim()).filter(x => x);
+
+      if (typeof q?.loteria === "string") return [q.loteria];
+
+      return ["SIN LOTERIA"];
+    };
 
     for(const id in ventas){
 
@@ -269,101 +285,197 @@ async function buscarVentas(){
 
       const fecha = fechaRaw.split("T")[0];
 
-      if(usuarioId !== "TODOS" && String(usuarioVenta) !== String(usuarioId)) continue;
+      if(usuarioId !== "TODOS_SISTEMA" && usuarioId !== "TODOS_GRUPO"){
+        if(String(usuarioVenta) !== String(usuarioId)) continue;
+      }
+
       if(fecha !== fechaSeleccionada) continue;
 
+      // 🔥 QUINIELA
       if(mostrarQuiniela){
         (v.quinielas || []).forEach(q=>{
-          const num = String(q.numeros).padStart(2,"0");
-          acumulado[num] += Number(q.montoDecimal || 0);
+
+          const num = String(q.numeros || "").padStart(2,"0");
+          const lotes = obtenerLoterias(v, q);
+
+          lotes.forEach(lot => {
+
+            const key = keyGen(num, lot);
+
+            if(!acumulado[key]){
+              acumulado[key] = { num, lot, Qui:0, Pale:0, Trip:0, Sp:0 };
+            }
+
+            acumulado[key].Qui += Number(q.montoDecimal || 0);
+          });
+
         });
       }
 
+      // 🔥 PALE
       if(mostrarPale){
         (v.pales || []).forEach(p=>{
-          const num = String(p.numeros).padStart(2,"0");
-          acumulado[num] += Number(p.montoDecimal || 0);
+
+          const num = String(p.numeros || "");
+          const lotes = obtenerLoterias(v, p);
+
+          lotes.forEach(lot => {
+
+            const key = keyGen(num, lot);
+
+            if(!acumulado[key]){
+              acumulado[key] = { num, lot, Qui:0, Pale:0, Trip:0, Sp:0 };
+            }
+
+            acumulado[key].Pale += Number(p.montoDecimal || 0);
+          });
+
         });
       }
 
+      // 🔥 TRIPLETA
       if(mostrarTripleta){
         (v.tripletas || []).forEach(t=>{
-          const num = String(t.numeros).padStart(2,"0");
-          acumulado[num] += Number(t.montoDecimal || 0);
+
+          const num = String(t.numeros || "");
+          const lotes = obtenerLoterias(v, t);
+
+          lotes.forEach(lot => {
+
+            const key = keyGen(num, lot);
+
+            if(!acumulado[key]){
+              acumulado[key] = { num, lot, Qui:0, Pale:0, Trip:0, Sp:0 };
+            }
+
+            acumulado[key].Trip += Number(t.montoDecimal || 0);
+          });
+
         });
       }
 
+      // 🔥 SUPER PALE
       if(mostrarSuperPale){
-        (v.superPales || []).forEach(s=>{
-          const num = String(s.numeros).padStart(2,"0");
-          acumulado[num] += Number(s.montoDecimal || 0);
+        (v.SuperPales || []).forEach(s=>{
+
+          const num = String(s.Numeros || "");
+          const lotes = obtenerLoterias(v, s);
+
+          lotes.forEach(lot => {
+
+            const key = keyGen(num, lot);
+
+            if(!acumulado[key]){
+              acumulado[key] = { num, lot, Qui:0, Pale:0, Trip:0, Sp:0 };
+            }
+
+            acumulado[key].Sp += Number(s.MontoDecimal || 0);
+          });
+
         });
       }
     }
 
     tbody.innerHTML = "";
 
-    const defaults = { Qui:500, Pale:50, Trip:25, Sp:30 };
+    for(const key in acumulado){
 
-    for(const num in acumulado){
+      const item = acumulado[key];
 
-      const vendido = acumulado[num];
+      const num = item.num;
+      const lot = item.lot;
 
-      let tipo = "Qui";
-      if(mostrarPale) tipo = "Pale";
-      else if(mostrarTripleta) tipo = "Trip";
-      else if(mostrarSuperPale) tipo = "Sp";
+      if(mostrarQuiniela && item.Qui > 0){
+        const lim = obtenerLimite(limitesDB, usuarioId, "Qui", num) || 0;
 
-      let limite = null;
-
-      // 🔥 BUSCAR POR NUMERO
-      for(const k in limitesDB){
-        const l = limitesDB[k];
-
-        if(String(l.UsuarioId) !== String(usuarioId)) continue;
-        if(l.TipoJugada !== tipo) continue;
-
-        if(String(l.Numero) === String(num)){
-          limite = Number(l.Limite);
-          break;
-        }
-      }
-
-      // 🔥 SI NO → NA
-      if(limite === null){
-        for(const k in limitesDB){
-          const l = limitesDB[k];
-
-          if(String(l.UsuarioId) !== String(usuarioId)) continue;
-          if(l.TipoJugada !== tipo) continue;
-
-          if(l.Numero === "NA"){
-            limite = Number(l.Limite);
-            break;
-          }
-        }
-      }
-
-      if(limite === null){
-        limite = defaults[tipo];
-      }
-
-      const disponible = limite - vendido;
-
-      if(vendido > 0){
         tbody.innerHTML += `
-          <tr>
-            <td>${num}</td>
-            <td>${vendido}</td>
-            <td>${disponible}</td>
-          </tr>
-        `;
+        <tr>
+          <td>${num}</td>
+          <td>Quiniela</td>
+          <td>${lot}</td>
+          <td>${item.Qui.toFixed(2)}</td>
+          <td>${(lim - item.Qui).toFixed(2)}</td>
+        </tr>`;
+      }
+
+      if(mostrarPale && item.Pale > 0){
+        const lim = obtenerLimite(limitesDB, usuarioId, "Pale", num) || 0;
+
+        tbody.innerHTML += `
+        <tr>
+          <td>${num}</td>
+          <td>Pale</td>
+          <td>${lot}</td>
+          <td>${item.Pale.toFixed(2)}</td>
+          <td>${(lim - item.Pale).toFixed(2)}</td>
+        </tr>`;
+      }
+
+      if(mostrarTripleta && item.Trip > 0){
+        const lim = obtenerLimite(limitesDB, usuarioId, "Trip", num) || 0;
+
+        tbody.innerHTML += `
+        <tr>
+          <td>${num}</td>
+          <td>Tripleta</td>
+          <td>${lot}</td>
+          <td>${item.Trip.toFixed(2)}</td>
+          <td>${(lim - item.Trip).toFixed(2)}</td>
+        </tr>`;
+      }
+
+      if(mostrarSuperPale && item.Sp > 0){
+        const lim = obtenerLimite(limitesDB, usuarioId, "Sp", num) || 0;
+
+        tbody.innerHTML += `
+        <tr>
+          <td>${num}</td>
+          <td>SuperPale</td>
+          <td>${lot}</td>
+          <td>${item.Sp.toFixed(2)}</td>
+          <td>${(lim - item.Sp).toFixed(2)}</td>
+        </tr>`;
       }
     }
 
   }catch(e){
     alert("Error: " + e.message);
   }
+}
+
+function obtenerLimite(db, usuarioId, tipo, num){
+
+  let limite = null;
+
+  for(const k in db){
+    const l = db[k];
+
+    if(String(l.UsuarioId) !== String(usuarioId)) continue;
+    if(l.TipoJugada !== tipo) continue;
+
+    if(String(l.Numero) === String(num)){
+      limite = Number(l.Limite);
+      break;
+    }
+  }
+
+  if(limite === null){
+    for(const k in db){
+      const l = db[k];
+
+      if(String(l.UsuarioId) !== String(usuarioId)) continue;
+      if(l.TipoJugada !== tipo) continue;
+
+      if(l.Numero === "NA"){
+        limite = Number(l.Limite);
+        break;
+      }
+    }
+  }
+
+  const defaults = { Qui:500, Pale:50, Trip:25, Sp:30 };
+
+  return limite ?? defaults[tipo];
 }
 // 🔘 botón
 document.getElementById("btnBuscar").addEventListener("click", buscarVentas);
