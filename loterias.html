@@ -187,7 +187,7 @@ const LIMITE = 10 * 60 * 1000;
 const usuarioGuardado = JSON.parse(localStorage.getItem("usuarioLogueado"));
 
 if(!usuarioGuardado){
-  window.location.replace("login.html");
+  window.location.replace("index.html");
 }
 
 // ✅ variables seguras
@@ -207,7 +207,7 @@ function cerrarSesionAuto(){
   alert("Sesión cerrada por inactividad");
 
   // 🔥 NO permite volver atrás
-  window.location.replace("login.html");
+  window.location.replace("index.html");
 }
 
 // 🎯 eventos de actividad
@@ -221,7 +221,7 @@ resetTimer();
 // 🔥 cerrar sesión si borran localStorage en otra pestaña
 window.addEventListener("storage", function(e){
   if(e.key === "usuarioLogueado" && !e.newValue){
-    window.location.replace("login.html");
+    window.location.replace("index.html");
   }
 });
 /* 🔥 MENU */
@@ -256,13 +256,19 @@ async function cargarUsuarios(){
     const snapshot = await get(child(ref(db), "Usuarios"));
     const data = snapshot.val() || {};
     combo.innerHTML = "<option value=''>Seleccione Usuario</option>";
+
     for(const uid in data){
       const u = data[uid];
+
       // 👑 ADMINISTRADOR VE TODOS, ADM VE SOLO SU ASIGNADO
       if(usuarioGuardado.tipo === "Administrador" || u.Asignado === usuarioLogueado){
         const option = document.createElement("option");
-        option.value = uid;
+
+        // 🔥 CAMBIO IMPORTANTE: ahora guarda el ID real (84)
+        option.value = u.Id;
+
         option.textContent = u.NombreUsuario;
+
         combo.appendChild(option);
       }
     }
@@ -283,6 +289,7 @@ async function cargarTabla(){
     const multipData = multipSnap.val() || {};
 
     tbody.innerHTML = "";
+
     for(const uid in usuariosData){
       const usuario = usuariosData[uid];
 
@@ -291,7 +298,9 @@ async function cargarTabla(){
          usuario.Asignado !== usuarioLogueado &&
          usuario.NombreUsuario !== usuarioLogueado) continue;
 
-      const multip = multipData[uid] || DEFAULT_MULTIPLIERS;
+      // 🔥 CAMBIO IMPORTANTE: usar ID real del usuario (84)
+      const idUsuario = usuario.Id;
+      const multip = multipData[idUsuario] || DEFAULT_MULTIPLIERS;
 
       tbody.innerHTML += `<tr>
         <td>${usuario.NombreUsuario}</td>
@@ -305,6 +314,7 @@ async function cargarTabla(){
         <td>${multip.SuperPale || DEFAULT_MULTIPLIERS.SuperPale}</td>
       </tr>`;
     }
+
   }catch(e){
     alert("Error cargando tabla: "+e.message);
   }
