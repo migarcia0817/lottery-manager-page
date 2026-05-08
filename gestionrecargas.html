@@ -86,6 +86,7 @@
         <th>ID</th>
         <th>Límite Diario</th>
         <th>Límite Transacción</th>
+        <th>Balance Disponible</th>
         <th>Acciones</th>
       </tr>
     </thead>
@@ -101,82 +102,139 @@ const firebaseConfig = {
   apiKey: "TU_API_KEY",
   databaseURL: "https://bancachupon-default-rtdb.firebaseio.com"
 };
+
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 let tiempoInactivo;
 const LIMITE = 10 * 60 * 1000;
 
-function resetTimer(){
+function resetTimer() {
   clearTimeout(tiempoInactivo);
   tiempoInactivo = setTimeout(cerrarSesionAuto, LIMITE);
 }
 
-function cerrarSesionAuto(){
+function cerrarSesionAuto() {
   localStorage.removeItem("usuarioLogueado");
   alert("Sesión cerrada por inactividad");
   window.location.href = "index.html";
-}  
+}
+
 const userData = JSON.parse(localStorage.getItem("usuarioLogueado"));
-if (!userData) window.location.href = "index.html";
+
+if (!userData) {
+  window.location.href = "index.html";
+}
 
 const usuarioLogueado = userData.nombre;
 const tipoUsuarioLogueado = userData.tipo.toString().toUpperCase().trim();
 
-// --- VISIBILIDAD DE BOTONES ADMIN ---
-if (tipoUsuarioLogueado === "ADMINISTRADOR" || tipoUsuarioLogueado === "ADMIN") {
-    document.getElementById("btnIrGrupoRecarga").style.display = "block";
-    document.getElementById("menuLinkGrupo").style.display = "block";
+// ================================
+// ADMIN
+// ================================
+if (
+  tipoUsuarioLogueado === "ADMINISTRADOR" ||
+  tipoUsuarioLogueado === "ADMIN"
+) {
+  document.getElementById("btnIrGrupoRecarga").style.display = "block";
+  document.getElementById("menuLinkGrupo").style.display = "block";
 }
 
-document.getElementById("grupoLabel").textContent = "Grupo: " + usuarioLogueado;
+document.getElementById("grupoLabel").textContent =
+  "Grupo: " + usuarioLogueado;
 
+// ================================
 window.toggleMenu = () => {
   const m = document.getElementById("menuDropdown");
   m.style.display = m.style.display === "flex" ? "none" : "flex";
 };
-window.cerrarSesion = () => { localStorage.removeItem("usuarioLogueado"); window.location.href="index.html"; };
 
-let usuariosLista = []; 
-let seleccionados = []; 
+window.cerrarSesion = () => {
+  localStorage.removeItem("usuarioLogueado");
+  window.location.href = "index.html";
+};
 
+let usuariosLista = [];
+let seleccionados = [];
+
+// ================================
+// USUARIOS
+// ================================
 async function cargarUsuarios() {
+
   const snap = await get(child(ref(db), "Usuarios"));
   const data = snap.val() || {};
+
   const combo = document.getElementById("comboUsuarios");
-  combo.innerHTML = '<option value="">Seleccione Usuario</option><option value="TODOS">TODOS</option>';
-  
+
+  combo.innerHTML =
+    '<option value="">Seleccione Usuario</option>' +
+    '<option value="TODOS">TODOS</option>';
+
   usuariosLista = [];
+
   for (let key in data) {
+
     const u = data[key];
-    if (tipoUsuarioLogueado === "ADMINISTRADOR" || u.Asignado === usuarioLogueado) {
-      usuariosLista.push({ id: u.Id || key, nombre: u.NombreUsuario });
-      combo.innerHTML += `<option value="${u.Id || key}">${u.NombreUsuario}</option>`;
+
+    if (
+      tipoUsuarioLogueado === "ADMINISTRADOR" ||
+      u.Asignado === usuarioLogueado
+    ) {
+
+      usuariosLista.push({
+        id: u.Id || key,
+        nombre: u.NombreUsuario
+      });
+
+      combo.innerHTML += `
+        <option value="${u.Id || key}">
+          ${u.NombreUsuario}
+        </option>`;
     }
   }
 }
 
-document.getElementById("comboUsuarios").addEventListener("change", (e) => {
+// ================================
+document.getElementById("comboUsuarios")
+.addEventListener("change", (e) => {
+
   const val = e.target.value;
   if (!val) return;
+
   if (val === "TODOS") {
     seleccionados = usuariosLista.map(u => u.id.toString());
   } else {
-    if (!seleccionados.includes(val.toString())) seleccionados.push(val.toString());
+    if (!seleccionados.includes(val.toString())) {
+      seleccionados.push(val.toString());
+    }
   }
+
   renderTags();
   e.target.value = "";
 });
 
+// ================================
 function renderTags() {
-  const container = document.getElementById("seleccionadosContainer");
+
+  const container =
+    document.getElementById("seleccionadosContainer");
+
   container.innerHTML = "";
+
   seleccionados.forEach(id => {
+
     const u = usuariosLista.find(x => x.id == id);
+
     if (!u) return;
+
     const tag = document.createElement("div");
+
     tag.className = "tag";
-    tag.innerHTML = `${u.nombre} <span onclick="quitarTag('${id}')">x</span>`;
+
+    tag.innerHTML =
+      `${u.nombre} <span onclick="quitarTag('${id}')">x</span>`;
+
     container.appendChild(tag);
   });
 }
@@ -186,44 +244,127 @@ window.quitarTag = (id) => {
   renderTags();
 };
 
+// ================================
+// GUARDAR
+// ================================
 window.guardarLimites = async () => {
+
   const diario = document.getElementById("limiteDiario").value;
   const porDia = document.getElementById("limitePorTransaccion").value;
-  if (seleccionados.length === 0 || !diario || !porDia) return alert("Complete todos los campos");
+
+  if (!seleccionados.length || !diario || !porDia) {
+    return alert("Complete todos los campos");
+  }
 
   for (let id of seleccionados) {
+
     const u = usuariosLista.find(x => x.id == id);
+
     await set(ref(db, 'limiterecarga/' + id), {
+
       idusuario: id,
       nombreusuario: u.nombre,
-      limiteDiario: diario,
-      limitePorTransaccion: porDia,
+      limiteDiario: parseFloat(diario).toFixed(2),
+      limitePorTransaccion: parseFloat(porDia).toFixed(2),
       registradoPor: usuarioLogueado,
       fecha: new Date().toLocaleString()
     });
   }
+
   alert("Guardado correctamente");
+
   seleccionados = [];
   renderTags();
+
+  document.getElementById("limiteDiario").value = "";
+  document.getElementById("limitePorTransaccion").value = "";
 };
 
+// ================================
+// 🔥 BALANCE CORREGIDO
+// ================================
+async function obtenerBalance(usuarioId) {
+
+  try {
+
+    const gruposSnap =
+      await get(child(ref(db), "GruposRecarga"));
+
+    const grupos = gruposSnap.val() || {};
+
+    let balance = "0.00";
+
+    for (let key in grupos) {
+
+      const g = grupos[key];
+
+      // 👇 Integrantes como array real
+      const integrantes = g.Integrantes || [];
+
+      // verificar si el usuario está en el grupo
+      if (Array.isArray(integrantes)) {
+
+        if (integrantes.includes(usuarioId.toString())) {
+
+          if (g.Balance) {
+
+            balance = g.Balance
+              .replace("$", "")
+              .replace(/,/g, "")
+              .trim();
+          }
+
+          break;
+        }
+      }
+    }
+
+    return parseFloat(balance || 0).toFixed(2);
+
+  } catch (e) {
+
+    console.log("Error balance:", e);
+
+    return "0.00";
+  }
+}
+// ================================
 function cargarTabla() {
-  onValue(ref(db, 'limiterecarga'), (snapshot) => {
+
+  onValue(ref(db, 'limiterecarga'),
+  async (snapshot) => {
+
     const data = snapshot.val();
     const tbody = document.getElementById("tbodyLimites");
+
     tbody.innerHTML = "";
+
     if (data) {
+
       for (let id in data) {
+
         const d = data[id];
-        // FILTRO: Admin ve todo, ADM solo lo suyo
-        if (tipoUsuarioLogueado === "ADMINISTRADOR" || d.registradoPor === usuarioLogueado) {
+
+        if (
+          tipoUsuarioLogueado === "ADMINISTRADOR" ||
+          d.registradoPor === usuarioLogueado
+        ) {
+
+          const balance = await obtenerBalance(d.idusuario);
+
           tbody.innerHTML += `
             <tr>
               <td>${d.nombreusuario}</td>
               <td>${d.idusuario}</td>
-              <td>$${d.limiteDiario}</td>
-              <td>$${d.limitePorTransaccion}</td>
-              <td><button class="btn-borrar" onclick="eliminarLimite('${id}')">Borrar</button></td>
+              <td>$${parseFloat(d.limiteDiario || 0).toFixed(2)}</td>
+              <td>$${parseFloat(d.limitePorTransaccion || 0).toFixed(2)}</td>
+              <td>$${balance}</td>
+              <td>
+                <button class="btn-borrar"
+                  onclick="eliminarLimite('${id}')">
+                  Borrar
+                </button>
+              </td>
             </tr>`;
         }
       }
@@ -231,14 +372,20 @@ function cargarTabla() {
   });
 }
 
-window.eliminarLimite = (id) => { if(confirm("¿Borrar?")) remove(ref(db, 'limiterecarga/' + id)); };
+window.eliminarLimite = (id) => {
+  if (confirm("¿Borrar?")) {
+    remove(ref(db, 'limiterecarga/' + id));
+  }
+};
 
 setInterval(() => {
-  document.getElementById("userInfo").innerHTML = `Usuario: ${usuarioLogueado} | ${new Date().toLocaleString()}`;
+  document.getElementById("userInfo").innerHTML =
+    `Usuario: ${usuarioLogueado} | ${new Date().toLocaleString()}`;
 }, 1000);
 
 cargarUsuarios();
 cargarTabla();
+
 </script>
 </body>
 </html>
