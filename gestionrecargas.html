@@ -361,20 +361,20 @@ function cargarTabla() {
             await obtenerBalance(d.idusuario);
 
           tbody.innerHTML += `
-            <tr>
-              <td>${d.nombreusuario}</td>
-              <td>${d.idusuario}</td>
-              <td>$${parseFloat(d.limiteDiario || 0).toFixed(2)}</td>
-              <td>$${parseFloat(d.limitePorTransaccion || 0).toFixed(2)}</td>
-              <td>$${ventasHoy}</td>
-              <td>$${balance}</td>
-              <td>
-                <button class="btn-borrar"
-                  onclick="eliminarLimite('${id}')">
-                  Borrar
-                </button>
-              </td>
-            </tr>`;
+  <tr>
+    <td>${d.nombreusuario}</td>
+    <td>${d.idusuario}</td>
+    <td>$${parseFloat(d.limiteDiario || 0).toFixed(2)}</td>
+    <td>$${parseFloat(d.limitePorTransaccion || 0).toFixed(2)}</td>
+    <td>$${ventasHoy}</td>
+    <td>$${balance}</td>
+    <td>
+      ${(tipoUsuarioLogueado === "ADMINISTRADOR" || tipoUsuarioLogueado === "ADMIN")
+        ? `<button class="btn-borrar" onclick="eliminarLimite('${id}')">Borrar</button>`
+        : `<button class="btn-borrar" disabled style="opacity:0.4; cursor:not-allowed;">Borrar</button>`
+      }
+    </td>
+  </tr>`;
         }
       }
     }
