@@ -86,7 +86,8 @@
         <th>ID</th>
         <th>Límite Diario</th>
         <th>Límite Transacción</th>
-        <th>Balance Disponible</th>
+        <th>Vendido</th>
+        <th>Balance </th>
         <th>Acciones</th>
       </tr>
     </thead>
@@ -329,6 +330,7 @@ async function obtenerBalance(usuarioId) {
   }
 }
 // ================================
+// ================================
 function cargarTabla() {
 
   onValue(ref(db, 'limiterecarga'),
@@ -350,7 +352,13 @@ function cargarTabla() {
           d.registradoPor === usuarioLogueado
         ) {
 
-          const balance = await obtenerBalance(d.idusuario);
+          // 🔥 VENTAS DEL DÍA
+          const ventasHoy =
+            await obtenerVentasDiarias(d.idusuario);
+
+          // 🔥 BALANCE
+          const balance =
+            await obtenerBalance(d.idusuario);
 
           tbody.innerHTML += `
             <tr>
@@ -358,6 +366,7 @@ function cargarTabla() {
               <td>${d.idusuario}</td>
               <td>$${parseFloat(d.limiteDiario || 0).toFixed(2)}</td>
               <td>$${parseFloat(d.limitePorTransaccion || 0).toFixed(2)}</td>
+              <td>$${ventasHoy}</td>
               <td>$${balance}</td>
               <td>
                 <button class="btn-borrar"
@@ -370,6 +379,95 @@ function cargarTabla() {
       }
     }
   });
+}
+
+// ================================
+// 🔥 OBTENER VENTAS DEL DÍA
+// ================================
+// ================================
+// 🔥 OBTENER MONTO VENDIDO
+// RECARGAS + PAQUETICOS
+// ================================
+// ================================
+// 🔥 OBTENER MONTO VENDIDO
+// RECARGAS + PAQUETICOS
+// ================================
+async function obtenerVentasDiarias(usuarioId) {
+
+  try {
+
+    let total = 0;
+
+    // =========================
+    // FECHA HOY (LOCAL - CORRECTO)
+    // =========================
+    const hoy = new Date()
+      .toLocaleDateString("en-CA"); // YYYY-MM-DD en hora local
+
+    // =========================
+    // NORMALIZAR FECHA
+    // =========================
+    function normalizarFecha(fecha) {
+
+      if (!fecha) return "";
+
+      return String(fecha)
+        .trim()
+        .substring(0, 10); // YYYY-MM-DD
+    }
+
+    const id = String(usuarioId ?? "").trim();
+
+    // =========================
+    // RECARGAS
+    // =========================
+    const recargasSnap =
+      await get(child(ref(db), "Recargas"));
+
+    const recargas = recargasSnap.val() || {};
+
+    for (let key in recargas) {
+
+      const r = recargas[key];
+
+      const fecha = normalizarFecha(r.fecha);
+      const branch = String(r.branch ?? "").trim();
+      const monto = parseFloat(r.amount ?? 0);
+
+      if (branch === id && fecha === hoy) {
+        total += monto;
+      }
+    }
+
+    // =========================
+    // PAQUETICOS
+    // =========================
+    const paqueticosSnap =
+      await get(child(ref(db), "Paqueticos"));
+
+    const paqueticos = paqueticosSnap.val() || {};
+
+    for (let key in paqueticos) {
+
+      const p = paqueticos[key];
+
+      const fecha = normalizarFecha(p.fecha);
+      const branch = String(p.branch ?? "").trim();
+      const monto = parseFloat(p.amount ?? 0);
+
+      if (branch === id && fecha === hoy) {
+        total += monto;
+      }
+    }
+
+    return total.toFixed(2);
+
+  } catch (e) {
+
+    console.log("Error ventas:", e);
+
+    return "0.00";
+  }
 }
 
 window.eliminarLimite = (id) => {
