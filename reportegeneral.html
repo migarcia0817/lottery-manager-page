@@ -116,6 +116,7 @@ th { background:#512BD4; color:white; position:sticky; top:0; }
       <tr>
         <th>Usuario</th>
         <th>Total Venta</th>
+        <th>Total Recargas</th>
         <th>Total Comisión</th>
         <th>Total Premio</th>
         <th>Total Neto</th>
@@ -173,7 +174,8 @@ window.toggleMenu = () => {
 
 function actualizarUserInfo(){
   const now = new Date();
-  document.getElementById("userInfo").innerHTML = `Usuario: ${usuarioLogueado} | Fecha/Hora: ${now.toLocaleString()}`;
+  document.getElementById("userInfo").innerHTML =
+    `Usuario: ${usuarioLogueado} | Fecha/Hora: ${now.toLocaleString()}`;
 }
 
 function fechaLocalHoy(){
@@ -184,169 +186,348 @@ function fechaLocalHoy(){
   return `${y}-${m}-${d}`;
 }
 
+/* 🔥 CACHE DE COMISIONES (IMPORTANTE PARA VELOCIDAD) */
+let cacheComisiones = {};
+
+async function cargarCacheComisiones(){
+  const snap = await get(child(ref(db), "Comisiones"));
+  cacheComisiones = snap.val() || {};
+}
+
+function obtenerPorcentaje(userId){
+  return Number(cacheComisiones?.[userId]?.porcentaje || 0);
+}
+
 async function cargarUsuarios() {
   const combo = document.getElementById("comboUsuario");
   combo.innerHTML = "<option value='todos'>Todos</option>";
-  
+
   const supervisorID = usuarioGuardado?.id || usuarioGuardado?.uid || usuarioGuardado?.Id;
   const tipo = usuarioGuardado?.tipo || "";
 
-  try {
-    const snap = await get(child(ref(db), "Usuarios"));
-    const data = snap.val() || {};
+  const snap = await get(child(ref(db), "Usuarios"));
+  const data = snap.val() || {};
 
-    let usuariosPermitidos = [];
-    if (tipo === "Supervisor") {
-      const gruposSnap = await get(child(ref(db), "Grupos"));
-      const gruposData = gruposSnap.val() || {};
-      for (const gId in gruposData) {
-        if (String(gruposData[gId].supervisor) === String(supervisorID)) {
-          usuariosPermitidos = gruposData[gId].usuarios || [];
-          break;
-        }
+  let usuariosPermitidos = [];
+
+  if (tipo === "Supervisor") {
+    const gruposSnap = await get(child(ref(db), "Grupos"));
+    const gruposData = gruposSnap.val() || {};
+    for (const gId in gruposData) {
+      if (String(gruposData[gId].supervisor) === String(supervisorID)) {
+        usuariosPermitidos = gruposData[gId].usuarios || [];
+        break;
       }
     }
+  }
 
-    for (const uid in data) {
-      const u = data[uid];
-      const nombreU = u.NombreUsuario;
-      const idU = String(u.Id);
-      let mostrar = false;
+  for (const uid in data) {
+    const u = data[uid];
+    const nombreU = u.NombreUsuario;
+    const idU = String(u.Id);
 
-      if (tipo === "Administrador") {
-        mostrar = true;
-      } else if (tipo === "ADM" && u.Asignado === usuarioLogueado) {
-        mostrar = true;
-      } else if (tipo === "Supervisor" && usuariosPermitidos.includes(idU)) {
-        mostrar = true;
-      }
+    let mostrar = false;
 
-      if (mostrar) {
-        const option = document.createElement("option");
-        option.value = nombreU;
-        option.textContent = nombreU;
-        combo.appendChild(option);
-      }
+    if (tipo === "Administrador") mostrar = true;
+    else if (tipo === "ADM" && u.Asignado === usuarioLogueado) mostrar = true;
+    else if (tipo === "Supervisor" && usuariosPermitidos.includes(idU)) mostrar = true;
+
+    if (mostrar) {
+      const option = document.createElement("option");
+      option.value = nombreU;
+      option.textContent = nombreU;
+      combo.appendChild(option);
     }
-  } catch (e) { 
-    alert("Error cargando usuarios: " + e.message); 
   }
 }
 
 async function buscarVentas() {
+
   const usuarioSel = document.getElementById("comboUsuario").value;
   const desde = document.getElementById("fechaDesde").value;
   const hasta = document.getElementById("fechaHasta").value;
 
-  if (!desde || !hasta) { alert("Seleccione fechas"); return; }
+  if (!desde || !hasta) {
+    alert("Seleccione fechas");
+    return;
+  }
 
-  const permitidos = Array.from(document.querySelectorAll("#comboUsuario option"))
-    .map(o => o.value)
-    .filter(v => v !== "todos");
+  const permitidos = Array.from(
+    document.querySelectorAll("#comboUsuario option")
+  )
+  .map(o => o.value)
+  .filter(v => v !== "todos");
 
   const tbody = document.getElementById("tablaVentas");
-  tbody.innerHTML = "<tr><td colspan='5'>Cargando...</td></tr>";
 
-  try {
-    const snap = await get(child(ref(db), "ventas"));
-    const ventas = snap.val() || {};
+  tbody.innerHTML =
+    "<tr><td colspan='6'>Cargando...</td></tr>";
 
-    const usuariosTotales = {};
-    let totalVenta = 0, totalComision = 0, totalPremio = 0, totalNeto = 0;
-    const tipo = usuarioGuardado?.tipo || "";
+  // =====================================
+  // CARGAR TODO
+  // =====================================
+  const [
+    snapVentas,
+    snapRecargas,
+    snapPaqueticos
+  ] = await Promise.all([
 
-    for (const id in ventas) {
-      const v = ventas[id];
-      const usuarioVenta = v.NombreUsuario || v.nombreUsuario || "Desconocido";
+    get(child(ref(db), "ventas")),
+    get(child(ref(db), "Recargas")),
+    get(child(ref(db), "Paqueticos"))
 
-      if (tipo !== "Administrador" && !permitidos.includes(usuarioVenta)) continue;
-      if (usuarioSel !== "todos" && usuarioVenta !== usuarioSel) continue;
+  ]);
 
-      const fechaRaw = v.FechaCreacion || v.fechaCreacion;
-      if (!fechaRaw) continue;
+  const ventas = snapVentas.val() || {};
+  const recargas = snapRecargas.val() || {};
+  const paqueticos = snapPaqueticos.val() || {};
 
-      const fechaVenta = new Date(fechaRaw);
-      const fechaStr = `${fechaVenta.getFullYear()}-${String(fechaVenta.getMonth() + 1).padStart(2, '0')}-${String(fechaVenta.getDate()).padStart(2, '0')}`;
-      
-      if (fechaStr < desde || fechaStr > hasta) continue;
+  const usuariosTotales = {};
 
-      const ventaMonto = Number(v.TotalNeto || v.totalNeto || 0);
-      const premio = Number(v.PremioCalculado || v.premioCalculado || v.Premio || v.premio || 0);
+  let totalVenta = 0;
+  let totalRecargas = 0;
+  let totalComision = 0;
+  let totalPremio = 0;
+  let totalNeto = 0;
 
-      /* 🔥 COMISIÓN CORREGIDA */
-      let porcentaje = 0;
+  const tipo = usuarioGuardado?.tipo || "";
 
-      const userId = v.idUsuario || v.IdUsuario || v.usuarioId || v.UsuarioId;
+  // =====================================
+  // VENTAS
+  // =====================================
+  for (const id in ventas) {
 
-      if (userId) {
-        const comSnap = await get(child(ref(db), `Comisiones/${userId}/porcentaje`));
-        if (comSnap.exists()) {
-          porcentaje = Number(comSnap.val()) || 0;
-        }
-      }
+    const v = ventas[id];
 
-      const comision = ventaMonto * (porcentaje / 100);
-      const neto = ventaMonto - premio - comision;
+    const usuarioVenta =
+      v.NombreUsuario ||
+      v.nombreUsuario ||
+      "Desconocido";
 
-      if (!usuariosTotales[usuarioVenta]) {
-        usuariosTotales[usuarioVenta] = { venta: 0, comision: 0, premio: 0, neto: 0 };
-      }
+    if (
+      tipo !== "Administrador" &&
+      !permitidos.includes(usuarioVenta)
+    ) continue;
 
-      usuariosTotales[usuarioVenta].venta += ventaMonto;
-      usuariosTotales[usuarioVenta].comision += comision;
-      usuariosTotales[usuarioVenta].premio += premio;
-      usuariosTotales[usuarioVenta].neto += neto;
+    if (
+      usuarioSel !== "todos" &&
+      usuarioVenta !== usuarioSel
+    ) continue;
+
+    const fechaRaw =
+      v.FechaCreacion ||
+      v.fechaCreacion;
+
+    if (!fechaRaw) continue;
+
+    const fechaVenta = new Date(fechaRaw);
+
+    const fechaStr =
+      `${fechaVenta.getFullYear()}-${String(
+        fechaVenta.getMonth() + 1
+      ).padStart(2,'0')}-${String(
+        fechaVenta.getDate()
+      ).padStart(2,'0')}`;
+
+    if (
+      fechaStr < desde ||
+      fechaStr > hasta
+    ) continue;
+
+    const ventaMonto = Number(
+      v.TotalNeto ||
+      v.totalNeto ||
+      0
+    );
+
+    const premio = Number(
+      v.PremioCalculado ||
+      v.premioCalculado ||
+      v.Premio ||
+      v.premio ||
+      0
+    );
+
+    const userId =
+      v.idUsuario ||
+      v.IdUsuario ||
+      v.usuarioId ||
+      v.UsuarioId;
+
+    const porcentaje =
+      obtenerPorcentaje(userId);
+
+    const comision =
+      ventaMonto * (porcentaje / 100);
+
+    const neto =
+      ventaMonto - premio - comision;
+
+    if (!usuariosTotales[usuarioVenta]) {
+
+      usuariosTotales[usuarioVenta] = {
+
+        venta: 0,
+        recargas: 0,
+        comision: 0,
+        premio: 0,
+        neto: 0
+      };
     }
 
-    tbody.innerHTML = "";
-
-    if (Object.keys(usuariosTotales).length === 0) {
-      tbody.innerHTML = "<tr><td colspan='5'>No hay ventas en este período</td></tr>";
-    } else {
-      for (const usuario in usuariosTotales) {
-        const v = usuariosTotales[usuario];
-
-        totalVenta += v.venta;
-        totalComision += v.comision;
-        totalPremio += v.premio;
-        totalNeto += v.neto;
-
-        tbody.innerHTML += `<tr>
-          <td>${usuario}</td>
-          <td>${v.venta.toFixed(2)}</td>
-          <td>${v.comision.toFixed(2)}</td>
-          <td>${v.premio.toFixed(2)}</td>
-          <td>${v.neto.toFixed(2)}</td>
-        </tr>`;
-      }
-    }
-
-    document.getElementById("totalVenta").textContent = totalVenta.toFixed(2);
-    document.getElementById("totalComision").textContent = totalComision.toFixed(2);
-    document.getElementById("totalPremio").textContent = totalPremio.toFixed(2);
-    document.getElementById("totalNeto").textContent = totalNeto.toFixed(2);
-
-  } catch (e) {
-    alert("Error cargando datos: " + e.message);
+    usuariosTotales[usuarioVenta].venta += ventaMonto;
+    usuariosTotales[usuarioVenta].comision += comision;
+    usuariosTotales[usuarioVenta].premio += premio;
+    usuariosTotales[usuarioVenta].neto += neto;
   }
+
+  // =====================================
+  // RECARGAS
+  // =====================================
+  for (const key in recargas) {
+
+    const r = recargas[key];
+
+    const usuario =
+      String(r.branch ?? "").trim();
+
+    const fecha =
+      String(r.fecha || "")
+      .substring(0, 10);
+
+    if (
+      fecha < desde ||
+      fecha > hasta
+    ) continue;
+
+    if (
+      usuarioSel !== "todos" &&
+      usuario !== usuarioSel
+    ) continue;
+
+    if (!usuariosTotales[usuario]) {
+
+      usuariosTotales[usuario] = {
+
+        venta: 0,
+        recargas: 0,
+        comision: 0,
+        premio: 0,
+        neto: 0
+      };
+    }
+
+    usuariosTotales[usuario].recargas +=
+      Number(r.amount || 0);
+  }
+
+  // =====================================
+  // PAQUETICOS
+  // =====================================
+  for (const key in paqueticos) {
+
+    const p = paqueticos[key];
+
+    const usuario =
+      String(p.branch ?? "").trim();
+
+    const fecha =
+      String(p.fecha || "")
+      .substring(0, 10);
+
+    if (
+      fecha < desde ||
+      fecha > hasta
+    ) continue;
+
+    if (
+      usuarioSel !== "todos" &&
+      usuario !== usuarioSel
+    ) continue;
+
+    if (!usuariosTotales[usuario]) {
+
+      usuariosTotales[usuario] = {
+
+        venta: 0,
+        recargas: 0,
+        comision: 0,
+        premio: 0,
+        neto: 0
+      };
+    }
+
+    usuariosTotales[usuario].recargas +=
+      Number(p.amount || 0);
+  }
+
+  tbody.innerHTML = "";
+
+  // =====================================
+  // TABLA
+  // =====================================
+  for (const usuario in usuariosTotales) {
+
+    const v = usuariosTotales[usuario];
+
+    totalVenta += v.venta;
+    totalRecargas += v.recargas;
+    totalComision += v.comision;
+    totalPremio += v.premio;
+    totalNeto += v.neto;
+
+    tbody.innerHTML += `
+      <tr>
+        <td>${usuario}</td>
+        <td>${v.venta.toFixed(2)}</td>
+        <td>${v.recargas.toFixed(2)}</td>
+        <td>${v.comision.toFixed(2)}</td>
+        <td>${v.premio.toFixed(2)}</td>
+        <td>${v.neto.toFixed(2)}</td>
+      </tr>`;
+  }
+
+  document.getElementById("totalVenta").textContent =
+    totalVenta.toFixed(2);
+
+  if (document.getElementById("totalRecargas")) {
+
+    document.getElementById("totalRecargas").textContent =
+      totalRecargas.toFixed(2);
+  }
+
+  document.getElementById("totalComision").textContent =
+    totalComision.toFixed(2);
+
+  document.getElementById("totalPremio").textContent =
+    totalPremio.toFixed(2);
+
+  document.getElementById("totalNeto").textContent =
+    totalNeto.toFixed(2);
 }
 
-document.getElementById("btnBuscar").addEventListener("click", buscarVentas);
-document.getElementById("btnImprimir").addEventListener("click", ()=>{ window.print(); });
+document.getElementById("btnBuscar")
+.addEventListener("click", buscarVentas);
+
+document.getElementById("btnImprimir")
+.addEventListener("click", ()=> window.print());
 
 window.addEventListener("DOMContentLoaded", async ()=>{
+
   actualizarUserInfo();
+
   setInterval(actualizarUserInfo, 1000);
-  
+
+  await cargarCacheComisiones();
+
   await cargarUsuarios();
 
   const hoy = fechaLocalHoy();
+
   document.getElementById("fechaDesde").value = hoy;
   document.getElementById("fechaHasta").value = hoy;
 
-  setTimeout(() => {
-    buscarVentas(hoy, hoy);
-  }, 300);
+  setTimeout(()=>buscarVentas(), 300);
 });
 </script>
 
