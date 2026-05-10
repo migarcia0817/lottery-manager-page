@@ -99,6 +99,7 @@ th { background:#512BD4; color:white; }
 <tr>
 <th>Banca</th>
 <th>Venta</th>
+<th>Recargas</th>
 <th>Comisión</th>
 <th>Premio</th>
 <th>Total</th>
@@ -125,7 +126,7 @@ const app = initializeApp({
 });
 const db = getDatabase(app);
 
-  //contro de cerrar solo 
+//contro de cerrar solo 
 let tiempoInactivo;
 const LIMITE = 10 * 60 * 1000;
 
@@ -194,6 +195,7 @@ async function cargarUsuarios() {
 }
 
 async function buscarVentas() {
+
   const desde = document.getElementById("fechaDesde").value;
   const hasta = document.getElementById("fechaHasta").value;
   const usuarioSel = document.getElementById("comboUsuario").value;
@@ -203,55 +205,110 @@ async function buscarVentas() {
     .filter(v => v !== "");
 
   const tbody = document.getElementById("tablaVentas");
-  tbody.innerHTML = "<tr><td colspan='5'>Cargando...</td></tr>";
+  tbody.innerHTML = "<tr><td colspan='6'>Cargando...</td></tr>";
 
-  // 🔥 CARGAR TODO DE UNA VEZ (CLAVE DE VELOCIDAD)
-  const [snapVentas, snapComisiones] = await Promise.all([
+  // 🔥 CARGAR TODO
+  const [
+    snapVentas,
+    snapComisiones,
+    snapRecargas,
+    snapPaqueticos
+  ] = await Promise.all([
     get(child(ref(db), "ventas")),
-    get(child(ref(db), "Comisiones"))
+    get(child(ref(db), "Comisiones")),
+    get(child(ref(db), "Recargas")),
+    get(child(ref(db), "Paqueticos"))
   ]);
 
   const ventas = snapVentas.val() || {};
   const comisionesDB = snapComisiones.val() || {};
+  const recargasDB = snapRecargas.val() || {};
+  const paqueticosDB = snapPaqueticos.val() || {};
 
   const agrupado = {};
 
+  // =========================================
+  // VENTAS LOTERIA
+  // =========================================
   for (const id in ventas) {
+
     const v = ventas[id];
     if (!v) continue;
 
-    const fecha = (v.fechaCreacion || v.FechaCreacion || "").split("T")[0];
+    const fecha =
+      (v.fechaCreacion || v.FechaCreacion || "")
+      .split("T")[0];
+
     if (fecha < desde || fecha > hasta) continue;
 
-    const usuario = v.nombreUsuario || v.NombreUsuario || "Desconocido";
+    const usuario =
+      v.nombreUsuario ||
+      v.NombreUsuario ||
+      "Desconocido";
 
     const tipo = usuarioGuardado?.tipo || "";
-    if (tipo !== "Administrador" && !permitidos.includes(usuario)) continue;
+
+    if (
+      tipo !== "Administrador"
+      &&
+      !permitidos.includes(usuario)
+    ) continue;
+
     if (usuarioSel && usuario !== usuarioSel) continue;
 
-    const esGanador = v.EsGanador ?? v.esGanador ?? false;
-    const premioCalculado = v.PremioCalculado ?? v.premioCalculado ?? 0;
-    const premio = esGanador ? Number(premioCalculado) : 0;
+    const esGanador =
+      v.EsGanador ??
+      v.esGanador ??
+      false;
+
+    const premioCalculado =
+      v.PremioCalculado ??
+      v.premioCalculado ??
+      0;
+
+    const premio =
+      esGanador
+      ? Number(premioCalculado)
+      : 0;
 
     if (!agrupado[usuario]) {
-      agrupado[usuario] = { venta: 0, comision: 0, premio: 0, neto: 0 };
+
+      agrupado[usuario] = {
+        venta: 0,
+        recarga: 0,
+        comision: 0,
+        premio: 0,
+        neto: 0
+      };
     }
 
-    const venta = Number(v.totalNeto || v.TotalNeto || 0);
+    const venta =
+      Number(v.totalNeto || v.TotalNeto || 0);
 
-    // 🔥 USAR ID DIRECTO DE LA VENTA
     const userIdVenta = String(
-      v.idUsuario || v.IdUsuario || v.usuarioId || v.UsuarioId || ""
+      v.idUsuario ||
+      v.IdUsuario ||
+      v.usuarioId ||
+      v.UsuarioId ||
+      ""
     );
 
-    // 🔥 SACAR COMISIÓN DIRECTO (SIN await)
     let porcentaje = 0;
-    if (userIdVenta && comisionesDB[userIdVenta]?.porcentaje) {
-      porcentaje = Number(comisionesDB[userIdVenta].porcentaje);
+
+    if (
+      userIdVenta &&
+      comisionesDB[userIdVenta]?.porcentaje
+    ) {
+
+      porcentaje =
+        Number(comisionesDB[userIdVenta].porcentaje);
     }
 
-    const montoComision = venta * (porcentaje / 100);
-    const neto = venta - montoComision - premio;
+    const montoComision =
+      venta * (porcentaje / 100);
+
+    const neto =
+      venta - montoComision - premio;
 
     agrupado[usuario].venta += venta;
     agrupado[usuario].comision += montoComision;
@@ -259,16 +316,164 @@ async function buscarVentas() {
     agrupado[usuario].neto += neto;
   }
 
-  let tB = 0, tV = 0, tC = 0, tP = 0, tN = 0;
+  // =========================================
+  // RECARGAS
+  // =========================================
+ for (const id in recargasDB) {
+
+  const r = recargasDB[id];
+  if (!r) continue;
+
+  const fecha =
+    String(r.fecha || "")
+    .substring(0, 10);
+
+  if (fecha < desde || fecha > hasta) continue;
+
+  // 🔥 USAR BRANCH = IDUSUARIO
+  const branchId =
+    String(r.branch ?? "").trim();
+
+  // 🔥 BUSCAR NOMBRE DEL USUARIO
+  let usuario = "";
+
+  const usuariosSnap =
+    await get(child(ref(db), "Usuarios"));
+
+  const usuariosDB =
+    usuariosSnap.val() || {};
+
+  for (const uid in usuariosDB) {
+
+    const u = usuariosDB[uid];
+
+    if (String(u.Id) === branchId) {
+
+      usuario = u.NombreUsuario;
+      break;
+    }
+  }
+
+  if (!usuario) continue;
+
+  const tipo = usuarioGuardado?.tipo || "";
+
+  if (
+    tipo !== "Administrador"
+    &&
+    !permitidos.includes(usuario)
+  ) continue;
+
+  if (usuarioSel && usuario !== usuarioSel) continue;
+
+  if (!agrupado[usuario]) {
+
+    agrupado[usuario] = {
+      venta: 0,
+      recarga: 0,
+      comision: 0,
+      premio: 0,
+      neto: 0
+    };
+  }
+
+  agrupado[usuario].recarga +=
+    Number(r.amount || 0);
+}
+
+// =========================================
+// PAQUETICOS
+// =========================================
+for (const id in paqueticosDB) {
+
+  const p = paqueticosDB[id];
+  if (!p) continue;
+
+  const fecha =
+    String(p.fecha || "")
+    .substring(0, 10);
+
+  if (fecha < desde || fecha > hasta) continue;
+
+  // 🔥 USAR BRANCH = IDUSUARIO
+  const branchId =
+    String(p.branch ?? "").trim();
+
+  // 🔥 BUSCAR NOMBRE DEL USUARIO
+  let usuario = "";
+
+  const usuariosSnap =
+    await get(child(ref(db), "Usuarios"));
+
+  const usuariosDB =
+    usuariosSnap.val() || {};
+
+  for (const uid in usuariosDB) {
+
+    const u = usuariosDB[uid];
+
+    if (String(u.Id) === branchId) {
+
+      usuario = u.NombreUsuario;
+      break;
+    }
+  }
+
+  if (!usuario) continue;
+
+  const tipo = usuarioGuardado?.tipo || "";
+
+  if (
+    tipo !== "Administrador"
+    &&
+    !permitidos.includes(usuario)
+  ) continue;
+
+  if (usuarioSel && usuario !== usuarioSel) continue;
+
+  if (!agrupado[usuario]) {
+
+    agrupado[usuario] = {
+      venta: 0,
+      recarga: 0,
+      comision: 0,
+      premio: 0,
+      neto: 0
+    };
+  }
+
+  agrupado[usuario].recarga +=
+    Number(p.amount || 0);
+}
+
+  // =========================================
+  // MOSTRAR TABLA
+  // =========================================
+  let tB = 0;
+  let tV = 0;
+  let tR = 0;
+  let tC = 0;
+  let tP = 0;
+  let tN = 0;
+
   tbody.innerHTML = "";
 
   for (const u in agrupado) {
+
     const v = agrupado[u];
-    tB++; tV += v.venta; tC += v.comision; tP += v.premio; tN += v.neto;
+
+    tB++;
+    tV += v.venta;
+    tR += v.recarga;
+    tC += v.comision;
+    tP += v.premio;
+    tN += v.neto;
+
     tbody.innerHTML += `
     <tr>
       <td>${u}</td>
       <td>${v.venta.toFixed(2)}</td>
+      <td>${v.recarga.toFixed(2)}</td>
       <td>${v.comision.toFixed(2)}</td>
       <td>${v.premio.toFixed(2)}</td>
       <td>${v.neto.toFixed(2)}</td>
@@ -294,15 +499,21 @@ window.onload = async ()=>{
   actualizarUser();
   setInterval(actualizarUser,1000);
   await cargarUsuarios();
+
   fechaDesde.value = hoy();
   fechaHasta.value = hoy();
+
   buscarVentas();
 
-  document.getElementById("btnBuscar").addEventListener("click", buscarVentas);
-  document.getElementById("btnImprimir").addEventListener("click", ()=>window.print());
-  document.getElementById("btnRegresar").addEventListener("click", ()=>window.location.href="reportes.html");
+  document.getElementById("btnBuscar")
+    .addEventListener("click", buscarVentas);
+
+  document.getElementById("btnImprimir")
+    .addEventListener("click", ()=>window.print());
+
+  document.getElementById("btnRegresar")
+    .addEventListener("click", ()=>window.location.href="reportes.html");
 };
 </script>
-
 </body>
 </html>
