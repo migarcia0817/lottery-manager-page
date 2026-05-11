@@ -64,13 +64,13 @@
     border-radius: 5px; 
     border: none; 
     outline: none; 
-    flex: 0 1 150px; /* No crecen demasiado, base de 120px */
+    flex: 0 1 250px; /* No crecen demasiado, base de 120px */
     min-width: 110px; /* Tamaño mínimo más pequeño */
     font-size: 13px; /* Fuente un poco más pequeña */
 }
   
   .btn-buscar { 
-    background:#28a745; color:#fff; border: none; padding: 10px 25px; 
+    background: #28a745; color: white; border: none; padding: 10px 25px; 
     border-radius: 5px; cursor: pointer; font-weight: bold; flex: 0 1 auto;
   }
   .btn-buscar:hover { background: #218838; }
@@ -144,6 +144,20 @@ import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs
 const app = initializeApp({ apiKey: "TU_API_KEY", databaseURL: "https://bancachupon-default-rtdb.firebaseio.com" });
 const db = getDatabase(app);
 
+// --- CONTROL DE INACTIVIDAD ---
+let tiempoInactivo;
+const LIMITE = 10 * 60 * 1000;
+function resetTimer(){
+  clearTimeout(tiempoInactivo);
+  tiempoInactivo = setTimeout(cerrarSesionAuto, LIMITE);
+}
+function cerrarSesionAuto(){
+  localStorage.removeItem("usuarioLogueado");
+  window.location.href = "index.html";
+}
+["click","mousemove","keypress","touchstart"].forEach(evt => document.addEventListener(evt, resetTimer));
+resetTimer();
+
 const userData = JSON.parse(localStorage.getItem("usuarioLogueado"));
 const tipoUsuario = userData?.tipo || "";
 const usuarioLogueadoID = userData?.id || userData?.uid || userData?.Id;
@@ -212,21 +226,56 @@ async function cargarMasVendido() {
         if (usuarioFiltro !== "TODOS" && uVenta !== usuarioFiltro) continue;
         if (loteriaFiltro && lVenta !== loteriaFiltro) continue;
 
-        const proc = (arr, target) => {
-            if (arr && Array.isArray(arr)) {
-                arr.forEach(i => {
-                    const n = i.numeros;
-                    const m = Number(i.montoDecimal || i.monto || 0);
-                    if (!target[n]) target[n] = { veces: 0, monto: 0 };
-                    target[n].veces++;
-                    target[n].monto += m;
-                });
+       const proc = (arr, tipo) => {
+
+    if (arr && Array.isArray(arr)) {
+
+        arr.forEach(i => {
+
+            const n = String(i.numeros || "").trim();
+
+            const m =
+                Number(i.montoDecimal || i.monto || 0);
+
+            // 🔥 detectar automáticamente
+            let grupoDestino = tipo;
+
+            const partes = n.split("-");
+
+            // 37-73-55 = Tripleta
+            if (partes.length === 3) {
+                grupoDestino = "Tripleta";
             }
-        };
-        proc(v.quinielas, grupos.Quiniela);
-        proc(v.pales, grupos.Pale);
-        proc(v.tripletas, grupos.Tripleta);
-        proc(v.superPales, grupos.SuperPale);
+
+            // 37-73 = Pale
+            else if (partes.length === 2) {
+                grupoDestino = "Pale";
+            }
+
+            // 12 = Quiniela
+            else {
+                grupoDestino = "Quiniela";
+            }
+
+            if (!grupos[grupoDestino][n]) {
+
+                grupos[grupoDestino][n] = {
+                    veces: 0,
+                    monto: 0
+                };
+            }
+
+            grupos[grupoDestino][n].veces++;
+
+            grupos[grupoDestino][n].monto += m;
+        });
+    }
+};
+
+proc(v.quinielas, "Quiniela");
+proc(v.pales, "Pale");
+proc(v.tripletas, "Tripleta");
+proc(v.superPales, "SuperPale");
     }
 
     tbody.innerHTML = "";
