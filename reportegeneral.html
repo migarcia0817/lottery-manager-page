@@ -293,7 +293,7 @@ async function buscarVentas() {
   const tipo = usuarioGuardado?.tipo || "";
 
   // =====================================
-  // 🔥 MAPA ID -> NOMBRE
+  // 🔥 MAPA ID -> USUARIO/ALIAS
   // =====================================
   const mapaUsuarios = {};
 
@@ -301,8 +301,18 @@ async function buscarVentas() {
 
     const u = usuariosDB[uid];
 
+    const nombre =
+      u.NombreUsuario || "";
+
+    const alias =
+      u.alias ||
+      u.Alias ||
+      "";
+
     mapaUsuarios[String(u.Id)] =
-      u.NombreUsuario;
+      alias
+      ? `${nombre}/${alias}`
+      : nombre;
   }
 
   // =====================================
@@ -312,19 +322,31 @@ async function buscarVentas() {
 
     const v = ventas[id];
 
-    const usuarioVenta =
+    const nombreVenta =
       v.NombreUsuario ||
       v.nombreUsuario ||
       "Desconocido";
 
+    const idVenta =
+      String(
+        v.idUsuario ||
+        v.IdUsuario ||
+        v.usuarioId ||
+        v.UsuarioId ||
+        ""
+      );
+
+    const usuarioVenta =
+      mapaUsuarios[idVenta] || nombreVenta;
+
     if (
       tipo !== "Administrador" &&
-      !permitidos.includes(usuarioVenta)
+      !permitidos.includes(nombreVenta)
     ) continue;
 
     if (
       usuarioSel !== "todos" &&
-      usuarioVenta !== usuarioSel
+      nombreVenta !== usuarioSel
     ) continue;
 
     const fechaRaw =
@@ -406,24 +428,25 @@ async function buscarVentas() {
     if (fecha < desde || fecha > hasta)
       continue;
 
-    // 🔥 branch = ID del usuario
     const branchId =
       String(r.branch ?? "").trim();
 
-    // 🔥 sacar nombre real
     const usuario =
       mapaUsuarios[branchId];
 
     if (!usuario) continue;
 
+    const nombreBase =
+      usuario.split("/")[0];
+
     if (
       tipo !== "Administrador" &&
-      !permitidos.includes(usuario)
+      !permitidos.includes(nombreBase)
     ) continue;
 
     if (
       usuarioSel !== "todos" &&
-      usuario !== usuarioSel
+      nombreBase !== usuarioSel
     ) continue;
 
     if (!usuariosTotales[usuario]) {
@@ -456,24 +479,25 @@ async function buscarVentas() {
     if (fecha < desde || fecha > hasta)
       continue;
 
-    // 🔥 branch = ID usuario
     const branchId =
       String(p.branch ?? "").trim();
 
-    // 🔥 sacar nombre real
     const usuario =
       mapaUsuarios[branchId];
 
     if (!usuario) continue;
 
+    const nombreBase =
+      usuario.split("/")[0];
+
     if (
       tipo !== "Administrador" &&
-      !permitidos.includes(usuario)
+      !permitidos.includes(nombreBase)
     ) continue;
 
     if (
       usuarioSel !== "todos" &&
-      usuario !== usuarioSel
+      nombreBase !== usuarioSel
     ) continue;
 
     if (!usuariosTotales[usuario]) {
@@ -554,6 +578,5 @@ window.addEventListener("DOMContentLoaded", async ()=>{
   setTimeout(()=>buscarVentas(), 300);
 });
 </script>
-
 </body>
 </html>
