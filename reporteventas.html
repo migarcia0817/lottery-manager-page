@@ -144,6 +144,9 @@ function cerrarSesionAuto(){
 const usuarioGuardado = JSON.parse(localStorage.getItem("usuarioLogueado"));
 const usuarioLogueado = usuarioGuardado?.nombre || "";
 
+// 🔥 CACHE GLOBAL DE USUARIOS
+let usuariosDBGlobal = {};
+
 window.toggleMenu = function(){
   const m = document.getElementById("menuDropdown");
   m.style.display = m.style.display === "flex" ? "none" : "flex";
@@ -161,6 +164,9 @@ async function cargarUsuarios() {
 
   const snap = await get(child(ref(db), "Usuarios"));
   const data = snap.val() || {};
+
+  // 🔥 GUARDAR CACHE
+  usuariosDBGlobal = data;
 
   const supervisorID = usuarioGuardado?.id || usuarioGuardado?.uid || usuarioGuardado?.Id;
   const tipo = usuarioGuardado?.tipo || "";
@@ -246,6 +252,37 @@ async function buscarVentas() {
       v.NombreUsuario ||
       "Desconocido";
 
+    // 🔥 BUSCAR ALIAS
+    const userIdActual = String(
+      v.idUsuario ||
+      v.IdUsuario ||
+      v.usuarioId ||
+      v.UsuarioId ||
+      ""
+    );
+
+    let aliasUsuario = "";
+
+    for (const uid in usuariosDBGlobal) {
+
+      const usr = usuariosDBGlobal[uid];
+
+      if (String(usr.Id) === userIdActual) {
+
+        aliasUsuario =
+          usr.Alias ||
+          usr.alias ||
+          "";
+
+        break;
+      }
+    }
+
+    const nombreMostrar =
+      aliasUsuario
+      ? `${usuario}/${aliasUsuario}`
+      : usuario;
+
     const tipo = usuarioGuardado?.tipo || "";
 
     if (
@@ -271,9 +308,9 @@ async function buscarVentas() {
       ? Number(premioCalculado)
       : 0;
 
-    if (!agrupado[usuario]) {
+    if (!agrupado[nombreMostrar]) {
 
-      agrupado[usuario] = {
+      agrupado[nombreMostrar] = {
         venta: 0,
         recarga: 0,
         comision: 0,
@@ -310,10 +347,10 @@ async function buscarVentas() {
     const neto =
       venta - montoComision - premio;
 
-    agrupado[usuario].venta += venta;
-    agrupado[usuario].comision += montoComision;
-    agrupado[usuario].premio += premio;
-    agrupado[usuario].neto += neto;
+    agrupado[nombreMostrar].venta += venta;
+    agrupado[nombreMostrar].comision += montoComision;
+    agrupado[nombreMostrar].premio += premio;
+    agrupado[nombreMostrar].neto += neto;
   }
 
   // =========================================
@@ -336,25 +373,31 @@ async function buscarVentas() {
 
   // 🔥 BUSCAR NOMBRE DEL USUARIO
   let usuario = "";
+  let aliasUsuario = "";
 
-  const usuariosSnap =
-    await get(child(ref(db), "Usuarios"));
+  for (const uid in usuariosDBGlobal) {
 
-  const usuariosDB =
-    usuariosSnap.val() || {};
-
-  for (const uid in usuariosDB) {
-
-    const u = usuariosDB[uid];
+    const u = usuariosDBGlobal[uid];
 
     if (String(u.Id) === branchId) {
 
       usuario = u.NombreUsuario;
+
+      aliasUsuario =
+        u.Alias ||
+        u.alias ||
+        "";
+
       break;
     }
   }
 
   if (!usuario) continue;
+
+  const nombreMostrar =
+    aliasUsuario
+    ? `${usuario}/${aliasUsuario}`
+    : usuario;
 
   const tipo = usuarioGuardado?.tipo || "";
 
@@ -366,9 +409,9 @@ async function buscarVentas() {
 
   if (usuarioSel && usuario !== usuarioSel) continue;
 
-  if (!agrupado[usuario]) {
+  if (!agrupado[nombreMostrar]) {
 
-    agrupado[usuario] = {
+    agrupado[nombreMostrar] = {
       venta: 0,
       recarga: 0,
       comision: 0,
@@ -377,7 +420,7 @@ async function buscarVentas() {
     };
   }
 
-  agrupado[usuario].recarga +=
+  agrupado[nombreMostrar].recarga +=
     Number(r.amount || 0);
 }
 
@@ -401,25 +444,31 @@ for (const id in paqueticosDB) {
 
   // 🔥 BUSCAR NOMBRE DEL USUARIO
   let usuario = "";
+  let aliasUsuario = "";
 
-  const usuariosSnap =
-    await get(child(ref(db), "Usuarios"));
+  for (const uid in usuariosDBGlobal) {
 
-  const usuariosDB =
-    usuariosSnap.val() || {};
-
-  for (const uid in usuariosDB) {
-
-    const u = usuariosDB[uid];
+    const u = usuariosDBGlobal[uid];
 
     if (String(u.Id) === branchId) {
 
       usuario = u.NombreUsuario;
+
+      aliasUsuario =
+        u.Alias ||
+        u.alias ||
+        "";
+
       break;
     }
   }
 
   if (!usuario) continue;
+
+  const nombreMostrar =
+    aliasUsuario
+    ? `${usuario}/${aliasUsuario}`
+    : usuario;
 
   const tipo = usuarioGuardado?.tipo || "";
 
@@ -431,9 +480,9 @@ for (const id in paqueticosDB) {
 
   if (usuarioSel && usuario !== usuarioSel) continue;
 
-  if (!agrupado[usuario]) {
+  if (!agrupado[nombreMostrar]) {
 
-    agrupado[usuario] = {
+    agrupado[nombreMostrar] = {
       venta: 0,
       recarga: 0,
       comision: 0,
@@ -442,7 +491,7 @@ for (const id in paqueticosDB) {
     };
   }
 
-  agrupado[usuario].recarga +=
+  agrupado[nombreMostrar].recarga +=
     Number(p.amount || 0);
 }
 
