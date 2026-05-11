@@ -120,6 +120,9 @@ window.toggleMenu = () => {
   menu.style.display = menu.style.display === "flex" ? "none" : "flex";
 };
 
+
+
+
 /* CARGAR DATOS Y RELLENAR TODO */
 async function cargarTodo() {
   onValue(ref(db, "Usuarios"), (snap) => {
@@ -158,6 +161,8 @@ async function cargarTodo() {
   });
 }
 
+
+
 /* AL SELECCIONAR EN COMBO */
 window.seleccionarUsuario = () => {
   const uid = document.getElementById("comboUsuarios").value;
@@ -167,28 +172,57 @@ window.seleccionarUsuario = () => {
   }
 };
 
-/* GUARDAR ALIAS */
-document.getElementById("btnGuardar").onclick = async () => {
-  const uid = document.getElementById("comboUsuarios").value;
-  const nuevoAlias = document.getElementById("editAlias").value.trim();
-  const nuevaDesc = document.getElementById("editDesc").value.trim();
+/* GUARDAR ALIAS - FIX CELULAR REAL */
+async function guardarAlias() {
 
-  if(!uid) return alert("Seleccione un usuario");
+  const uid =
+    document.getElementById("comboUsuarios").value;
+
+  const inputAlias =
+    document.getElementById("editAlias");
+
+  const inputDesc =
+    document.getElementById("editDesc");
+
+  // 🔥 FORZAR QUE EL CELULAR GUARDE EL TEXTO ESCRITO
+  inputAlias.blur();
+  inputDesc.blur();
+
+  const nuevoAlias =
+    (inputAlias.value || "").trim();
+
+  const nuevaDesc =
+    (inputDesc.value || "").trim();
+
+  if(!uid)
+    return alert("Seleccione un usuario");
 
   try {
+
     await update(ref(db, `Usuarios/${uid}`), {
       Alias: nuevoAlias,
       Descripcion: nuevaDesc
     });
+
     alert("Datos actualizados");
 
-      document.getElementById("comboUsuarios").value = "";
-    document.getElementById("editAlias").value = "";
-    document.getElementById("editDesc").value = "";
+    document.getElementById("comboUsuarios").value = "";
+    inputAlias.value = "";
+    inputDesc.value = "";
+
   } catch(e) {
     alert("Error: " + e.message);
   }
-};
+}
+
+/* 🔥 IMPORTANTE: soporta click + toque en móvil */
+const btn = document.getElementById("btnGuardar");
+
+btn.addEventListener("click", guardarAlias);
+btn.addEventListener("touchend", function(e){
+  e.preventDefault();
+  guardarAlias();
+});
 
 /* BUSCAR EN TABLA */
 document.getElementById("btnBuscar").onclick = () => {
