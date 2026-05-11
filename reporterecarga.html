@@ -145,11 +145,23 @@ async function cargarUsuarios() {
     for (const id in data) {
         const u = data[id];
         let mostrar = false;
-        if (tipoUsuario === "Administrador") { mostrar = true; } 
-        else if (tipoUsuario === "ADM" && u.Asignado === usuarioLogueado) { mostrar = true; }
+
+        if (tipoUsuario === "Administrador") { 
+            mostrar = true; 
+        } 
+        else if (tipoUsuario === "ADM" && u.Asignado === usuarioLogueado) { 
+            mostrar = true; 
+        }
 
         if (mostrar) {
-            const opt = `<option value="${u.NombreUsuario}">${u.NombreUsuario}</option>`;
+
+            const alias = u.Alias || "";
+            const nombreMostrar = alias
+              ? `${u.NombreUsuario}/${alias}`
+              : u.NombreUsuario;
+
+            const opt = `<option value="${u.NombreUsuario}">${nombreMostrar}</option>`;
+
             combo.innerHTML += opt;
             modalCombo.innerHTML += opt;
         }
@@ -157,73 +169,160 @@ async function cargarUsuarios() {
 }
 
 async function buscarRecargas() {
+
     const desde = document.getElementById("fechaDesde").value;
     const hasta = document.getElementById("fechaHasta").value;
     const usuarioSel = document.getElementById("comboUsuario").value;
+
     const tbody = document.getElementById("tablaRecargas");
+
     tbody.innerHTML = "<tr><td colspan='5'>Buscando...</td></tr>";
 
     const snapRecargas = await get(child(ref(db), "Recargas"));
     const snapUsers = await get(child(ref(db), "Usuarios"));
+
     const recargas = snapRecargas.val() || {};
     const usuariosDB = snapUsers.val() || {};
+
     const agrupado = {};
 
     for (const id in recargas) {
+
         const r = recargas[id];
-        const fecha = (r.Fecha || "").split(" ")[0];
+
+        const fecha =
+          (r.Fecha || "")
+          .split(" ")[0];
+
         const user = r.Usuario;
 
         if (fecha < desde || fecha > hasta) continue;
+
         if (usuarioSel && user !== usuarioSel) continue;
 
         if (tipoUsuario === "ADM") {
-            const uData = Object.values(usuariosDB).find(u => u.NombreUsuario === user);
-            if (!uData || uData.Asignado !== usuarioLogueado) continue;
+
+            const uData =
+              Object.values(usuariosDB)
+              .find(u => u.NombreUsuario === user);
+
+            if (
+              !uData ||
+              uData.Asignado !== usuarioLogueado
+            ) continue;
         }
 
         if (!agrupado[user]) {
-            const uData = Object.values(usuariosDB).find(u => u.NombreUsuario === user);
-            const comisionConfig = uData?.ComisionRecarga || 0;
-            agrupado[user] = { total: 0, porcComision: comisionConfig };
+
+            const uData =
+              Object.values(usuariosDB)
+              .find(u => u.NombreUsuario === user);
+
+            const comisionConfig =
+              uData?.ComisionRecarga || 0;
+
+            const alias =
+              uData?.Alias || "";
+
+            const nombreMostrar =
+              alias
+              ? `${user}/${alias}`
+              : user;
+
+            agrupado[user] = {
+                total: 0,
+                porcComision: comisionConfig,
+                nombreMostrar
+            };
         }
-        agrupado[user].total += parseFloat(r.Monto || 0);
+
+        agrupado[user].total +=
+          parseFloat(r.Monto || 0);
     }
 
     tbody.innerHTML = "";
+
     for (const user in agrupado) {
+
         const data = agrupado[user];
-        const montoComision = data.total * (data.porcComision / 100);
-        const neto = data.total - montoComision;
-        tbody.innerHTML += `<tr><td>${user}</td><td>${data.total.toFixed(2)}</td><td>${data.porcComision}%</td><td>${montoComision.toFixed(2)}</td><td>${neto.toFixed(2)}</td></tr>`;
+
+        const montoComision =
+          data.total * (data.porcComision / 100);
+
+        const neto =
+          data.total - montoComision;
+
+        tbody.innerHTML += `
+        <tr>
+          <td>${data.nombreMostrar}</td>
+          <td>${data.total.toFixed(2)}</td>
+          <td>${data.porcComision}%</td>
+          <td>${montoComision.toFixed(2)}</td>
+          <td>${neto.toFixed(2)}</td>
+        </tr>`;
     }
 }
 
 document.getElementById("btnGuardarComision").onclick = async () => {
-    const userToEdit = document.getElementById("modalComboUsuario").value;
-    const nuevaCom = document.getElementById("inputNuevaComision").value;
-    if (!userToEdit || nuevaCom === "") return alert("Complete los datos");
 
-    const snap = await get(child(ref(db), "Usuarios"));
+    const userToEdit =
+      document.getElementById("modalComboUsuario").value;
+
+    const nuevaCom =
+      document.getElementById("inputNuevaComision").value;
+
+    if (!userToEdit || nuevaCom === "")
+      return alert("Complete los datos");
+
+    const snap =
+      await get(child(ref(db), "Usuarios"));
+
     const data = snap.val();
-    let keyUser = Object.keys(data).find(key => data[key].NombreUsuario === userToEdit);
+
+    let keyUser =
+      Object.keys(data)
+      .find(key =>
+        data[key].NombreUsuario === userToEdit
+      );
 
     if (keyUser) {
-        await update(ref(db, `Usuarios/${keyUser}`), { ComisionRecarga: parseFloat(nuevaCom) });
+
+        await update(
+          ref(db, `Usuarios/${keyUser}`),
+          {
+            ComisionRecarga:
+            parseFloat(nuevaCom)
+          }
+        );
+
         alert("Comisión actualizada");
+
         cerrarModal();
+
         buscarRecargas();
     }
 };
 
-window.abrirModal = () => document.getElementById("modalComision").style.display = "block";
-window.cerrarModal = () => document.getElementById("modalComision").style.display = "none";
-document.getElementById("btnBuscar").onclick = buscarRecargas;
+window.abrirModal = () =>
+  document.getElementById("modalComision").style.display = "block";
 
-const hoy = new Date().toISOString().split('T')[0];
+window.cerrarModal = () =>
+  document.getElementById("modalComision").style.display = "none";
+
+document.getElementById("btnBuscar").onclick =
+  buscarRecargas;
+
+const hoy =
+  new Date()
+  .toISOString()
+  .split('T')[0];
+
 document.getElementById("fechaDesde").value = hoy;
 document.getElementById("fechaHasta").value = hoy;
-document.getElementById("userInfo").innerText = `Usuario: ${usuarioLogueado} | ${new Date().toLocaleString()}`;
+
+document.getElementById("userInfo").innerText =
+  `Usuario: ${usuarioLogueado} | ${new Date().toLocaleString()}`;
+
 cargarUsuarios();
 </script>
 </body>
