@@ -89,15 +89,12 @@ button.btn-eliminar { background:#dc3545; color:white; padding:6px 12px; border:
     <button style="padding:10px 20px; background:#6c757d; color:white; border:none; border-radius:5px; cursor:pointer;" onclick="window.location.href='principal.html'">Regresar</button>
   </div>
 </div>
-
+<script src="config.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
 import { getDatabase, ref, set, get, child, push, remove } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
-const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  databaseURL: "https://bancachupon-default-rtdb.firebaseio.com"
-};
+
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
