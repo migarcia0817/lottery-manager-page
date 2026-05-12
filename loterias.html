@@ -167,8 +167,9 @@ th { background:#512BD4; color:white; position:sticky; top:0; }
   </table>
 </div>
 
-  
+
 <script src="config.js"></script>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
 import { getDatabase, ref, get, child, update } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
@@ -247,34 +248,37 @@ const DEFAULT_MULTIPLIERS = {
 };
 
 /* 🔥 CARGAR USUARIOS EN COMBO */
+/* 🔥 CARGAR USUARIOS EN COMBO */
 async function cargarUsuarios(){
   const combo = document.getElementById("comboUsuario");
   combo.innerHTML = "<option value=''>Cargando...</option>";
+
   try{
     const snapshot = await get(child(ref(db), "Usuarios"));
     const data = snapshot.val() || {};
+
     combo.innerHTML = "<option value=''>Seleccione Usuario</option>";
 
     for(const uid in data){
       const u = data[uid];
 
-      // 👑 ADMINISTRADOR VE TODOS, ADM VE SOLO SU ASIGNADO
       if(usuarioGuardado.tipo === "Administrador" || u.Asignado === usuarioLogueado){
         const option = document.createElement("option");
 
-        // 🔥 CAMBIO IMPORTANTE: ahora guarda el ID real (84)
+        // 💾 LO QUE SE GUARDA (ID REAL DE TU SISTEMA)
         option.value = u.Id;
 
-        option.textContent = u.NombreUsuario;
+        // 👁️ LO QUE SE MUESTRA (NOMBRE + ID REAL)
+        option.textContent = `${u.NombreUsuario}`;
 
         combo.appendChild(option);
       }
     }
+
   }catch(e){
-    alert("Error cargando usuarios: "+e.message);
+    alert("Error cargando usuarios: " + e.message);
   }
 }
-
 /* 🔥 CARGAR TABLA Loterias */
 async function cargarTabla(){
   const tbody = document.querySelector("#tablaLoterias tbody");
@@ -318,24 +322,31 @@ async function cargarTabla(){
   }
 }
 
-/* 🔥 BOTON ACTUALIZAR */
 async function actualizarMonto(){
-  const usuarioSel = document.getElementById("comboUsuario").value;
+  const select = document.getElementById("comboUsuario");
+  const usuarioSel = select.value;
   const tipo = document.getElementById("comboTipo").value;
   const monto = document.getElementById("txtMonto").value.trim();
 
-  if(!usuarioSel){ alert("Seleccione un usuario"); return; }
-  if(!tipo){ alert("Seleccione un tipo de jugada"); return; }
-  if(!monto || monto <=0){ alert("Ingrese un monto válido"); return; }
+  if(!usuarioSel){ alert("ERROR: No seleccionó usuario"); return; }
+  if(!tipo){ alert("ERROR: No seleccionó tipo"); return; }
+  if(!monto || monto <= 0){ alert("ERROR: monto inválido"); return; }
+
+  const path = `MultiplicadoresPremios/${usuarioSel}`;
 
   try{
-    const path = `MultiplicadoresPremios/${usuarioSel}`;
-    await update(ref(db, path), {[tipo]: Number(monto)});
-    alert("Monto actualizado correctamente");
+    await update(ref(db, path), {
+      [tipo]: Number(monto)
+    });
+
+    alert("✔ Monto actualizado correctamente");
+
     document.getElementById("txtMonto").value = "";
-    cargarTabla();
+
+    await cargarTabla();
+
   }catch(e){
-    alert("Error al actualizar: "+e.message);
+    alert("❌ ERROR Firebase: " + e.message);
   }
 }
 
