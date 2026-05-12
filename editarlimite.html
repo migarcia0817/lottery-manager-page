@@ -121,6 +121,8 @@ button.btn-eliminar { background:#dc3545; color:white; padding:5px 10px; border:
     <tbody id="tbodyLimites"></tbody>
   </table>
 </div>
+
+
 <script src="config.js"></script>
 <script type="module">
 
@@ -136,7 +138,6 @@ window.cerrarSesion = function(){
   localStorage.removeItem("usuarioLogueado");
   window.location.href = "login.html";
 };
-
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -171,8 +172,9 @@ if(!userData){
 
 // ✅ ya seguro existe
 const usuarioLogueado = userData.nombre;
- const fechaHoy = new Date().toLocaleDateString(); // Formato: DD/MM/AAAA
+  const fechaHoy = new Date().toLocaleDateString(); // Formato: DD/MM/AAAA
   document.getElementById("userInfo").innerHTML = "Usuario: " + usuarioLogueado + " | Fecha: " + fechaHoy;
+
 
 const DEFAULT_LIMITS = { "Qui": 500, "Pale": 50, "Trip": 25, "Sp": 30 };
 
@@ -256,16 +258,35 @@ document.getElementById("guardarBtn").addEventListener("click", async ()=>{
   const usuarioId = comboUsuario.value.trim();
   const tipoJugada = tipoJugadaSelect.value;
   const numero = numeroInput.value.trim() || null;
-  const limite = parseFloat(document.getElementById("limite").value) || DEFAULT_LIMITS[tipoJugada];
+
+  // 🔥 VALIDAR LIMITE
+  const limiteInput = document.getElementById("limite").value.trim();
+
+  if(limiteInput === ""){
+    alert("Debe ingresar un límite");
+    return;
+  }
+
+  const limite = parseFloat(limiteInput);
+
+  if(isNaN(limite) || limite <= 0){
+    alert("El límite debe ser mayor que cero");
+    return;
+  }
+
   const bloqueado = document.getElementById("bloqueado").checked;
   const statusDiv = document.getElementById("status");
 
-  if(!usuarioId){ alert("Seleccione un usuario"); return; }
+  if(!usuarioId){
+    alert("Seleccione un usuario");
+    return;
+  }
 
   if(!validarNumero(numero, tipoJugada)){
     alert("Número ingresado no cumple el formato para " + tipoJugada);
     return;
   }
+
 
   const snapUsuarios = await get(ref(db, "Usuarios"));
   const usuarios = snapUsuarios.val() || {};
