@@ -85,14 +85,12 @@ th{ background: #512BD4; color: white; }
   <tbody id="tabla"></tbody>
 </table>
 
+<script src="config.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
 import { getDatabase, ref, get, child, update, push, onValue, remove } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
-const app = initializeApp({
-  apiKey:"TU_API_KEY",
-  databaseURL:"https://bancachupon-default-rtdb.firebaseio.com"
-});
+const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 let data = {};
