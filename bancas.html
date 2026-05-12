@@ -98,82 +98,150 @@
     <tbody></tbody>
   </table>
 </div>
+
 <script src="config.js"></script>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-import { getDatabase, ref, get, child, update, onValue } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
-  
+
+import {
+  getDatabase,
+  ref,
+  get,
+  update,
+  onValue
+} from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+
+/* 🔥 FIREBASE */
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-const usuarioGuardado = JSON.parse(localStorage.getItem("usuarioLogueado"));
-const usuarioLogueado = usuarioGuardado ? usuarioGuardado.nombre : "Invitado";
-const tipoUsuarioLogueado = usuarioGuardado ? usuarioGuardado.tipo : "";
+/* 🔥 USUARIO LOGUEADO */
+const usuarioGuardado =
+  JSON.parse(localStorage.getItem("usuarioLogueado"));
+
+const usuarioLogueado =
+  usuarioGuardado
+    ? usuarioGuardado.nombre
+    : "Invitado";
+
+const tipoUsuarioLogueado =
+  usuarioGuardado
+    ? usuarioGuardado.tipo
+    : "";
 
 let globalUsuarios = {};
 
+/* 🔥 MENU */
 window.toggleMenu = () => {
-  const menu = document.getElementById("menuDropdown");
-  menu.style.display = menu.style.display === "flex" ? "none" : "flex";
+
+  const menu =
+    document.getElementById("menuDropdown");
+
+  menu.style.display =
+    menu.style.display === "flex"
+      ? "none"
+      : "flex";
 };
 
+/* 🔥 CARGAR TABLA + COMBO */
+function cargarTodo() {
 
-
-
-/* CARGAR DATOS Y RELLENAR TODO */
-async function cargarTodo() {
   onValue(ref(db, "Usuarios"), (snap) => {
+
     globalUsuarios = snap.val() || {};
-    const tbody = document.querySelector("#tablaBancas tbody");
-    const combo = document.getElementById("comboUsuarios");
-    
+
+    const tbody =
+      document.querySelector("#tablaBancas tbody");
+
+    const combo =
+      document.getElementById("comboUsuarios");
+
     tbody.innerHTML = "";
-    combo.innerHTML = "<option value=''>Seleccione un usuario...</option>";
-    
+
+    combo.innerHTML =
+      "<option value=''>Seleccione un usuario...</option>";
+
     let contador = 1;
-    for(const uid in globalUsuarios) {
+
+    for (const uid in globalUsuarios) {
+
       const u = globalUsuarios[uid];
 
-      // VALIDACIÓN DE PRIVACIDAD
-      if(tipoUsuarioLogueado === "Administrador" || u.Asignado === usuarioLogueado || u.NombreUsuario === usuarioLogueado) {
-        
-        // Llenar Combo
-        const opt = new Option(u.NombreUsuario, uid);
-        combo.add(opt);
+      // 🔥 VALIDACIÓN
+      if (
+        tipoUsuarioLogueado === "Administrador" ||
+        u.Asignado === usuarioLogueado ||
+        u.NombreUsuario === usuarioLogueado
+      ) {
 
-        // Llenar Tabla
-        const fila = document.createElement("tr");
+        // 🔥 COMBO
+        const option =
+          document.createElement("option");
+
+        option.value = uid;
+        option.textContent = u.NombreUsuario;
+
+        combo.appendChild(option);
+
+        // 🔥 TABLA
+        const fila =
+          document.createElement("tr");
+
         fila.innerHTML = `
           <td>${contador}</td>
-          <td>${u.NombreUsuario}</td>
+          <td>${u.NombreUsuario || ""}</td>
           <td>${u.Alias || "---"}</td>
           <td>${u.Descripcion || "---"}</td>
           <td>${u.Grupo || usuarioLogueado}</td>
-          <td><input type="checkbox" disabled ${u.Activo ? "checked" : ""}></td>
+          <td>
+            <input
+              type="checkbox"
+              disabled
+              ${u.Activo ? "checked" : ""}
+            >
+          </td>
         `;
+
         tbody.appendChild(fila);
+
         contador++;
       }
     }
   });
 }
 
-
-
-/* AL SELECCIONAR EN COMBO */
+/* 🔥 SELECCIONAR USUARIO */
 window.seleccionarUsuario = () => {
-  const uid = document.getElementById("comboUsuarios").value;
-  if(globalUsuarios[uid]) {
-    document.getElementById("editAlias").value = globalUsuarios[uid].Alias || "";
-    document.getElementById("editDesc").value = globalUsuarios[uid].Descripcion || "";
+
+  const uid =
+    document.getElementById("comboUsuarios").value;
+
+  if (!uid || !globalUsuarios[uid]) {
+
+    document.getElementById("editAlias").value = "";
+    document.getElementById("editDesc").value = "";
+
+    return;
   }
+
+  document.getElementById("editAlias").value =
+    globalUsuarios[uid].Alias || "";
+
+  document.getElementById("editDesc").value =
+    globalUsuarios[uid].Descripcion || "";
 };
 
-/* GUARDAR ALIAS - FIX CELULAR REAL */
+/* 🔥 GUARDAR */
 async function guardarAlias() {
 
   const uid =
     document.getElementById("comboUsuarios").value;
+
+  if (!uid) {
+    alert("Seleccione un usuario");
+    return;
+  }
 
   const inputAlias =
     document.getElementById("editAlias");
@@ -181,9 +249,12 @@ async function guardarAlias() {
   const inputDesc =
     document.getElementById("editDesc");
 
-  // 🔥 FORZAR QUE EL CELULAR GUARDE EL TEXTO ESCRITO
+  // 🔥 FIX CELULAR
   inputAlias.blur();
   inputDesc.blur();
+
+  // 🔥 ESPERA PEQUEÑA
+  await new Promise(r => setTimeout(r, 100));
 
   const nuevoAlias =
     (inputAlias.value || "").trim();
@@ -191,51 +262,83 @@ async function guardarAlias() {
   const nuevaDesc =
     (inputDesc.value || "").trim();
 
-  if(!uid)
-    return alert("Seleccione un usuario");
-
   try {
 
-    await update(ref(db, `Usuarios/${uid}`), {
-      Alias: nuevoAlias,
-      Descripcion: nuevaDesc
-    });
+    console.log("Guardando UID:", uid);
 
-    alert("Datos actualizados");
+    await update(
+      ref(db, "Usuarios/" + uid),
+      {
+        Alias: nuevoAlias,
+        Descripcion: nuevaDesc
+      }
+    );
 
+    alert("Datos actualizados correctamente");
+
+    // 🔥 LIMPIAR
     document.getElementById("comboUsuarios").value = "";
+
     inputAlias.value = "";
     inputDesc.value = "";
 
-  } catch(e) {
-    alert("Error: " + e.message);
+  } catch (e) {
+
+    console.error(e);
+
+    alert(
+      "Error guardando: " + e.message
+    );
   }
 }
 
-/* 🔥 IMPORTANTE: soporta click + toque en móvil */
-const btn = document.getElementById("btnGuardar");
+/* 🔥 BOTÓN */
+const btnGuardar =
+  document.getElementById("btnGuardar");
 
-btn.addEventListener("click", guardarAlias);
-btn.addEventListener("touchend", function(e){
-  e.preventDefault();
-  guardarAlias();
-});
+btnGuardar.onclick = guardarAlias;
 
-/* BUSCAR EN TABLA */
+/* 🔥 BUSCAR */
 document.getElementById("btnBuscar").onclick = () => {
-  const valor = document.getElementById("buscarId").value.trim().toLowerCase();
-  document.querySelectorAll("#tablaBancas tbody tr").forEach(fila => {
-    fila.classList.toggle("resaltado", fila.children[1].textContent.toLowerCase().includes(valor) && valor !== "");
-  });
+
+  const valor =
+    document.getElementById("buscarId")
+      .value
+      .trim()
+      .toLowerCase();
+
+  document
+    .querySelectorAll("#tablaBancas tbody tr")
+    .forEach(fila => {
+
+      fila.classList.toggle(
+        "resaltado",
+
+        fila.children[1]
+          .textContent
+          .toLowerCase()
+          .includes(valor)
+
+        && valor !== ""
+      );
+    });
 };
 
+/* 🔥 INIT */
 window.onload = () => {
+
   cargarTodo();
+
   setInterval(() => {
+
     const now = new Date();
-    document.getElementById("userInfo").innerHTML = `Usuario: ${usuarioLogueado} | ${now.toLocaleString()}`;
+
+    document.getElementById("userInfo").innerHTML =
+      `Usuario: ${usuarioLogueado} | ${now.toLocaleString()}`;
+
   }, 1000);
 };
+
 </script>
 </body>
 </html>
