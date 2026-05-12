@@ -141,16 +141,13 @@ button.btn-eliminar { background:#dc3545; color:white; padding:5px 10px; border:
     <tbody id="tbodyGrupos"></tbody>
   </table>
 </div>
-
+<script src="config.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
 import { getDatabase, ref, set, get, child, remove } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
 /* 🔥 FIREBASE */
-const app = initializeApp({
-  apiKey: "TU_API_KEY",
-  databaseURL: "https://bancachupon-default-rtdb.firebaseio.com"
-});
+const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 let tiempoInactivo;
