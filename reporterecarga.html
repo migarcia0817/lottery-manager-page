@@ -238,6 +238,8 @@ async function buscarRecargas() {
   const paqueticosDB = snapPaqueticos.val() || {};
   const usuariosDB = snapUsuarios.val() || {};
 
+  
+
   const agrupado = {};
 
   // ================================
@@ -246,20 +248,23 @@ async function buscarRecargas() {
   for (const id in recargasDB) {
 
     const r = recargasDB[id];
+
     if (!r) continue;
 
-    // 🔥 FIX FECHA REAL
-    const fecha = String(r.fecha || "").slice(0, 10).trim();
+    
 
-    // 🔥 DEBUG opcional (solo si falla)
-    // console.log("RECARGA FECHA:", fecha);
+    const fecha = String(r.Fecha || "")
+      .slice(0, 10)
+      .trim();
 
     if (!fecha) continue;
 
-    // 🔥 COMPARACIÓN SEGURA
-    if (fecha < desde || fecha > hasta) continue;
+    if (fecha < desde || fecha > hasta)
+      continue;
 
-    const branchId = String(r.branch ?? "").trim();
+    const branchId = String(
+      r.Branch ?? ""
+    ).trim();
 
     let usuario = "";
     let aliasUsuario = "";
@@ -269,86 +274,55 @@ async function buscarRecargas() {
 
       const u = usuariosDB[uid];
 
+     
+
       if (String(u.Id) === branchId) {
+
         usuario = u.NombreUsuario;
+
         aliasUsuario = u.Alias || "";
-        porcentaje = Number(u.ComisionRecarga || 0);
+
+        porcentaje = Number(
+          u.ComisionRecarga || 0
+        );
+
+       
+
         break;
       }
     }
 
-    if (!usuario) continue;
+   
 
     const nombreMostrar =
-      aliasUsuario ? `${usuario}/${aliasUsuario}` : usuario;
+      aliasUsuario
+      ? `${usuario}/${aliasUsuario}`
+      : usuario;
 
-    if (tipoUsuario !== "Administrador" && !permitidos.includes(usuario)) continue;
-    if (usuarioSel && usuario !== usuarioSel) continue;
+    if (
+      tipoUsuario !== "Administrador" &&
+      !permitidos.includes(usuario)
+    ) continue;
+
+    if (
+      usuarioSel &&
+      usuario !== usuarioSel
+    ) continue;
 
     if (!agrupado[nombreMostrar]) {
+
       agrupado[nombreMostrar] = {
         total: 0,
         porcComision: porcentaje
       };
     }
 
-    const monto = Number(r.amount || 0);
-
-    // 🔥 SOLO SUMA SI ES MAYOR QUE 0 (como pediste antes)
-    if (monto > 0) {
-      agrupado[nombreMostrar].total += monto;
-    }
-  }
-
-  // ================================
-  // PAQUETICOS
-  // ================================
-  for (const id in paqueticosDB) {
-
-    const p = paqueticosDB[id];
-    if (!p) continue;
-
-    const fecha = String(p.fecha || "").slice(0, 10).trim();
-
-    if (!fecha) continue;
-    if (fecha < desde || fecha > hasta) continue;
-
-    const branchId = String(p.branch ?? "").trim();
-
-    let usuario = "";
-    let aliasUsuario = "";
-    let porcentaje = 0;
-
-    for (const uid in usuariosDB) {
-
-      const u = usuariosDB[uid];
-
-      if (String(u.Id) === branchId) {
-        usuario = u.NombreUsuario;
-        aliasUsuario = u.Alias || "";
-        porcentaje = Number(u.ComisionRecarga || 0);
-        break;
-      }
-    }
-
-    if (!usuario) continue;
-
-    const nombreMostrar =
-      aliasUsuario ? `${usuario}/${aliasUsuario}` : usuario;
-
-    if (tipoUsuario !== "Administrador" && !permitidos.includes(usuario)) continue;
-    if (usuarioSel && usuario !== usuarioSel) continue;
-
-    if (!agrupado[nombreMostrar]) {
-      agrupado[nombreMostrar] = {
-        total: 0,
-        porcComision: porcentaje
-      };
-    }
-
-    const monto = Number(p.amount || 0);
+    const monto = Number(
+      r.Amount || 0
+    );
 
     if (monto > 0) {
+
       agrupado[nombreMostrar].total += monto;
     }
   }
@@ -362,8 +336,12 @@ async function buscarRecargas() {
 
     const d = agrupado[user];
 
-    const montoComision = d.total * (d.porcComision / 100);
-    const neto = d.total - montoComision;
+    const montoComision =
+      d.total *
+      (d.porcComision / 100);
+
+    const neto =
+      d.total - montoComision;
 
     tbody.innerHTML += `
       <tr>
@@ -377,14 +355,16 @@ async function buscarRecargas() {
   }
 
   if (Object.keys(agrupado).length === 0) {
+
     tbody.innerHTML = `
       <tr>
-        <td colspan="5">No hay datos</td>
+        <td colspan="5">
+          No hay datos
+        </td>
       </tr>
     `;
   }
 }
-
 // =========================================
 // GUARDAR COMISION
 // =========================================
