@@ -380,14 +380,7 @@ function cargarTabla() {
 // ================================
 // 🔥 OBTENER VENTAS DEL DÍA
 // ================================
-// ================================
-// 🔥 OBTENER MONTO VENDIDO
-// RECARGAS + PAQUETICOS
-// ================================
-// ================================
-// 🔥 OBTENER MONTO VENDIDO
-// RECARGAS + PAQUETICOS
-// ================================
+
 async function obtenerVentasDiarias(usuarioId) {
 
   try {
@@ -395,24 +388,24 @@ async function obtenerVentasDiarias(usuarioId) {
     let total = 0;
 
     // =========================
-    // FECHA HOY (LOCAL - CORRECTO)
+    // FECHA HOY
     // =========================
-    const hoy = new Date()
-      .toLocaleDateString("en-CA"); // YYYY-MM-DD en hora local
+    const hoy =
+      new Date()
+      .toISOString()
+      .substring(0, 10);
 
-    // =========================
-    // NORMALIZAR FECHA
-    // =========================
     function normalizarFecha(fecha) {
 
       if (!fecha) return "";
 
       return String(fecha)
         .trim()
-        .substring(0, 10); // YYYY-MM-DD
+        .substring(0, 10);
     }
 
-    const id = String(usuarioId ?? "").trim();
+    const id =
+      String(usuarioId ?? "").trim();
 
     // =========================
     // RECARGAS
@@ -420,18 +413,34 @@ async function obtenerVentasDiarias(usuarioId) {
     const recargasSnap =
       await get(child(ref(db), "Recargas"));
 
-    const recargas = recargasSnap.val() || {};
+    const recargas =
+      recargasSnap.val() || {};
 
+   
     for (let key in recargas) {
 
       const r = recargas[key];
 
-      const fecha = normalizarFecha(r.fecha);
-      const branch = String(r.branch ?? "").trim();
-      const monto = parseFloat(r.amount ?? 0);
+      // 🔥 CAMPOS CORRECTOS
+      const fecha =
+        normalizarFecha(r.Fecha);
 
-      if (branch === id && fecha === hoy) {
+      const branch =
+        String(r.Branch ?? "").trim();
+
+      const monto =
+        parseFloat(r.Amount ?? 0);
+
+      
+
+      if (
+        branch === id &&
+        fecha === hoy
+      ) {
+
         total += monto;
+
+       
       }
     }
 
@@ -441,30 +450,58 @@ async function obtenerVentasDiarias(usuarioId) {
     const paqueticosSnap =
       await get(child(ref(db), "Paqueticos"));
 
-    const paqueticos = paqueticosSnap.val() || {};
+    const paqueticos =
+      paqueticosSnap.val() || {};
+
+   
 
     for (let key in paqueticos) {
 
       const p = paqueticos[key];
 
-      const fecha = normalizarFecha(p.fecha);
-      const branch = String(p.branch ?? "").trim();
-      const monto = parseFloat(p.amount ?? 0);
+      // 🔥 CAMPOS CORRECTOS
+      const fecha =
+        normalizarFecha(p.Fecha);
 
-      if (branch === id && fecha === hoy) {
+      const branch =
+        String(p.Branch ?? "").trim();
+
+      const monto =
+        parseFloat(
+          p.Amount ??
+          p.Monto ??
+          0
+        );
+
+    
+
+      if (
+        branch === id &&
+        fecha === hoy
+      ) {
+
         total += monto;
+
+       
       }
     }
 
+  
     return total.toFixed(2);
 
   } catch (e) {
 
     console.log("Error ventas:", e);
 
+    alert(
+      "ERROR:\n\n" + e
+    );
+
     return "0.00";
   }
 }
+
+
 
 window.eliminarLimite = (id) => {
   if (confirm("¿Borrar?")) {
