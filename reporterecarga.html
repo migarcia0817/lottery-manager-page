@@ -77,8 +77,8 @@
 
 <div class="filtros">
   <select id="comboUsuario"></select>
-  <input type="date" id="fechaDesde">
-  <input type="date" id="fechaHasta">
+ <input type="date" id="fechaDesde" lang="es-DO">
+ <input type="date" id="fechaHasta" lang="es-DO">
   <button id="btnBuscar">Buscar</button>
   <button id="btnComision" onclick="abrirModal()">Editar Comisión</button>
   <button id="btnRegresar" onclick="history.back()">Regresar</button>
@@ -114,7 +114,7 @@
     </div>
 </div>
 
-<script src="config.js"></script>    
+<script src="config.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
 import { getDatabase, ref, get, child, update } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
@@ -122,206 +122,362 @@ import { getDatabase, ref, get, child, update } from "https://www.gstatic.com/fi
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-const usuarioGuardado = JSON.parse(localStorage.getItem("usuarioLogueado"));
-const usuarioLogueado = usuarioGuardado?.nombre || "";
-const tipoUsuario = usuarioGuardado?.tipo || "";
+const usuarioGuardado =
+  JSON.parse(localStorage.getItem("usuarioLogueado"));
+
+const usuarioLogueado =
+  usuarioGuardado?.nombre || "";
+
+const tipoUsuario =
+  usuarioGuardado?.tipo || "";
 
 window.toggleMenu = () => {
-  const m = document.getElementById("menuDropdown");
-  m.style.display = m.style.display === "flex" ? "none" : "flex";
+
+  const m =
+    document.getElementById("menuDropdown");
+
+  m.style.display =
+    m.style.display === "flex"
+    ? "none"
+    : "flex";
 };
 
+
+// =========================================
+// CARGAR USUARIOS
+// =========================================
 async function cargarUsuarios() {
-    const combo = document.getElementById("comboUsuario");
-    const modalCombo = document.getElementById("modalComboUsuario");
-    combo.innerHTML = "<option value=''>Todos</option>";
-    modalCombo.innerHTML = "";
 
-    const snap = await get(child(ref(db), "Usuarios"));
-    const data = snap.val() || {};
+  const combo =
+    document.getElementById("comboUsuario");
 
-    for (const id in data) {
-        const u = data[id];
-        let mostrar = false;
+  const modalCombo =
+    document.getElementById("modalComboUsuario");
 
-        if (tipoUsuario === "Administrador") { 
-            mostrar = true; 
-        } 
-        else if (tipoUsuario === "ADM" && u.Asignado === usuarioLogueado) { 
-            mostrar = true; 
-        }
+  combo.innerHTML =
+    "<option value=''>Todos</option>";
 
-        if (mostrar) {
+  modalCombo.innerHTML = "";
 
-            const alias = u.Alias || "";
-            const nombreMostrar = alias
-              ? `${u.NombreUsuario}/${alias}`
-              : u.NombreUsuario;
+  const snap =
+    await get(child(ref(db), "Usuarios"));
 
-            const opt = `<option value="${u.NombreUsuario}">${nombreMostrar}</option>`;
+  const data =
+    snap.val() || {};
 
-            combo.innerHTML += opt;
-            modalCombo.innerHTML += opt;
-        }
+  for (const id in data) {
+
+    const u = data[id];
+
+    let mostrar = false;
+
+    if (tipoUsuario === "Administrador") {
+
+      mostrar = true;
+
+    } else if (
+      tipoUsuario === "ADM" &&
+      u.Asignado === usuarioLogueado
+    ) {
+
+      mostrar = true;
     }
+
+    if (mostrar) {
+
+      const alias =
+        u.Alias || "";
+
+      const nombreMostrar =
+        alias
+        ? `${u.NombreUsuario}/${alias}`
+        : u.NombreUsuario;
+
+      // 🔥 VALUE = NOMBRE
+      const opt =
+        `<option value="${u.NombreUsuario}">
+          ${nombreMostrar}
+        </option>`;
+
+      combo.innerHTML += opt;
+      modalCombo.innerHTML += opt;
+    }
+  }
 }
 
+// =========================================
+// BUSCAR RECARGAS
+// =========================================
 async function buscarRecargas() {
 
-    const desde = document.getElementById("fechaDesde").value;
-    const hasta = document.getElementById("fechaHasta").value;
-    const usuarioSel = document.getElementById("comboUsuario").value;
+  const desde = document.getElementById("fechaDesde").value;
+  const hasta = document.getElementById("fechaHasta").value;
+  const usuarioSel = document.getElementById("comboUsuario").value;
 
-    const tbody = document.getElementById("tablaRecargas");
+  const permitidos = Array.from(
+    document.querySelectorAll("#comboUsuario option")
+  )
+  .map(o => o.value)
+  .filter(v => v !== "");
 
-    tbody.innerHTML = "<tr><td colspan='5'>Buscando...</td></tr>";
+  const tbody = document.getElementById("tablaRecargas");
 
-    const snapRecargas = await get(child(ref(db), "Recargas"));
-    const snapUsers = await get(child(ref(db), "Usuarios"));
+  tbody.innerHTML = "<tr><td colspan='5'>Cargando...</td></tr>";
 
-    const recargas = snapRecargas.val() || {};
-    const usuariosDB = snapUsers.val() || {};
+  const [
+    snapRecargas,
+    snapPaqueticos,
+    snapUsuarios
+  ] = await Promise.all([
+    get(child(ref(db), "Recargas")),
+    get(child(ref(db), "Paqueticos")),
+    get(child(ref(db), "Usuarios"))
+  ]);
 
-    const agrupado = {};
+  const recargasDB = snapRecargas.val() || {};
+  const paqueticosDB = snapPaqueticos.val() || {};
+  const usuariosDB = snapUsuarios.val() || {};
 
-    for (const id in recargas) {
+  const agrupado = {};
 
-        const r = recargas[id];
+  // ================================
+  // RECARGAS
+  // ================================
+  for (const id in recargasDB) {
 
-        const fecha =
-          (r.Fecha || "")
-          .split(" ")[0];
+    const r = recargasDB[id];
+    if (!r) continue;
 
-        const user = r.Usuario;
+    // 🔥 FIX FECHA REAL
+    const fecha = String(r.fecha || "").slice(0, 10).trim();
 
-        if (fecha < desde || fecha > hasta) continue;
+    // 🔥 DEBUG opcional (solo si falla)
+    // console.log("RECARGA FECHA:", fecha);
 
-        if (usuarioSel && user !== usuarioSel) continue;
+    if (!fecha) continue;
 
-        if (tipoUsuario === "ADM") {
+    // 🔥 COMPARACIÓN SEGURA
+    if (fecha < desde || fecha > hasta) continue;
 
-            const uData =
-              Object.values(usuariosDB)
-              .find(u => u.NombreUsuario === user);
+    const branchId = String(r.branch ?? "").trim();
 
-            if (
-              !uData ||
-              uData.Asignado !== usuarioLogueado
-            ) continue;
-        }
+    let usuario = "";
+    let aliasUsuario = "";
+    let porcentaje = 0;
 
-        if (!agrupado[user]) {
+    for (const uid in usuariosDB) {
 
-            const uData =
-              Object.values(usuariosDB)
-              .find(u => u.NombreUsuario === user);
+      const u = usuariosDB[uid];
 
-            const comisionConfig =
-              uData?.ComisionRecarga || 0;
-
-            const alias =
-              uData?.Alias || "";
-
-            const nombreMostrar =
-              alias
-              ? `${user}/${alias}`
-              : user;
-
-            agrupado[user] = {
-                total: 0,
-                porcComision: comisionConfig,
-                nombreMostrar
-            };
-        }
-
-        agrupado[user].total +=
-          parseFloat(r.Monto || 0);
+      if (String(u.Id) === branchId) {
+        usuario = u.NombreUsuario;
+        aliasUsuario = u.Alias || "";
+        porcentaje = Number(u.ComisionRecarga || 0);
+        break;
+      }
     }
 
-    tbody.innerHTML = "";
+    if (!usuario) continue;
 
-    for (const user in agrupado) {
+    const nombreMostrar =
+      aliasUsuario ? `${usuario}/${aliasUsuario}` : usuario;
 
-        const data = agrupado[user];
+    if (tipoUsuario !== "Administrador" && !permitidos.includes(usuario)) continue;
+    if (usuarioSel && usuario !== usuarioSel) continue;
 
-        const montoComision =
-          data.total * (data.porcComision / 100);
-
-        const neto =
-          data.total - montoComision;
-
-        tbody.innerHTML += `
-        <tr>
-          <td>${data.nombreMostrar}</td>
-          <td>${data.total.toFixed(2)}</td>
-          <td>${data.porcComision}%</td>
-          <td>${montoComision.toFixed(2)}</td>
-          <td>${neto.toFixed(2)}</td>
-        </tr>`;
+    if (!agrupado[nombreMostrar]) {
+      agrupado[nombreMostrar] = {
+        total: 0,
+        porcComision: porcentaje
+      };
     }
+
+    const monto = Number(r.amount || 0);
+
+    // 🔥 SOLO SUMA SI ES MAYOR QUE 0 (como pediste antes)
+    if (monto > 0) {
+      agrupado[nombreMostrar].total += monto;
+    }
+  }
+
+  // ================================
+  // PAQUETICOS
+  // ================================
+  for (const id in paqueticosDB) {
+
+    const p = paqueticosDB[id];
+    if (!p) continue;
+
+    const fecha = String(p.fecha || "").slice(0, 10).trim();
+
+    if (!fecha) continue;
+    if (fecha < desde || fecha > hasta) continue;
+
+    const branchId = String(p.branch ?? "").trim();
+
+    let usuario = "";
+    let aliasUsuario = "";
+    let porcentaje = 0;
+
+    for (const uid in usuariosDB) {
+
+      const u = usuariosDB[uid];
+
+      if (String(u.Id) === branchId) {
+        usuario = u.NombreUsuario;
+        aliasUsuario = u.Alias || "";
+        porcentaje = Number(u.ComisionRecarga || 0);
+        break;
+      }
+    }
+
+    if (!usuario) continue;
+
+    const nombreMostrar =
+      aliasUsuario ? `${usuario}/${aliasUsuario}` : usuario;
+
+    if (tipoUsuario !== "Administrador" && !permitidos.includes(usuario)) continue;
+    if (usuarioSel && usuario !== usuarioSel) continue;
+
+    if (!agrupado[nombreMostrar]) {
+      agrupado[nombreMostrar] = {
+        total: 0,
+        porcComision: porcentaje
+      };
+    }
+
+    const monto = Number(p.amount || 0);
+
+    if (monto > 0) {
+      agrupado[nombreMostrar].total += monto;
+    }
+  }
+
+  // ================================
+  // MOSTRAR
+  // ================================
+  tbody.innerHTML = "";
+
+  for (const user in agrupado) {
+
+    const d = agrupado[user];
+
+    const montoComision = d.total * (d.porcComision / 100);
+    const neto = d.total - montoComision;
+
+    tbody.innerHTML += `
+      <tr>
+        <td>${user}</td>
+        <td>${d.total.toFixed(2)}</td>
+        <td>${d.porcComision.toFixed(2)}%</td>
+        <td>${montoComision.toFixed(2)}</td>
+        <td>${neto.toFixed(2)}</td>
+      </tr>
+    `;
+  }
+
+  if (Object.keys(agrupado).length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5">No hay datos</td>
+      </tr>
+    `;
+  }
 }
 
-document.getElementById("btnGuardarComision").onclick = async () => {
+// =========================================
+// GUARDAR COMISION
+// =========================================
+document.getElementById(
+  "btnGuardarComision"
+).onclick = async () => {
 
-    const userToEdit =
-      document.getElementById("modalComboUsuario").value;
+  const userToEdit =
+    document.getElementById(
+      "modalComboUsuario"
+    ).value;
 
-    const nuevaCom =
-      document.getElementById("inputNuevaComision").value;
+  const nuevaCom =
+    document.getElementById(
+      "inputNuevaComision"
+    ).value;
 
-    if (!userToEdit || nuevaCom === "")
-      return alert("Complete los datos");
+  if (!userToEdit || nuevaCom === "")
+    return alert("Complete los datos");
 
-    const snap =
-      await get(child(ref(db), "Usuarios"));
+  const snap =
+    await get(child(ref(db), "Usuarios"));
 
-    const data = snap.val();
+  const data =
+    snap.val();
 
-    let keyUser =
-      Object.keys(data)
-      .find(key =>
-        data[key].NombreUsuario === userToEdit
-      );
+  let keyUser =
+    Object.keys(data)
+    .find(key =>
+      data[key].NombreUsuario === userToEdit
+    );
 
-    if (keyUser) {
+  if (keyUser) {
 
-        await update(
-          ref(db, `Usuarios/${keyUser}`),
-          {
-            ComisionRecarga:
-            parseFloat(nuevaCom)
-          }
-        );
+    await update(
+      ref(db, `Usuarios/${keyUser}`),
+      {
+        ComisionRecarga:
+          parseFloat(nuevaCom)
+      }
+    );
 
-        alert("Comisión actualizada");
+    alert("Comisión actualizada");
 
-        cerrarModal();
+    cerrarModal();
 
-        buscarRecargas();
-    }
+    buscarRecargas();
+  }
 };
 
 window.abrirModal = () =>
-  document.getElementById("modalComision").style.display = "block";
+  document.getElementById(
+    "modalComision"
+  ).style.display = "block";
 
 window.cerrarModal = () =>
-  document.getElementById("modalComision").style.display = "none";
+  document.getElementById(
+    "modalComision"
+  ).style.display = "none";
 
-document.getElementById("btnBuscar").onclick =
-  buscarRecargas;
+document.getElementById(
+  "btnBuscar"
+).onclick = buscarRecargas;
 
-const hoy =
-  new Date()
-  .toISOString()
-  .split('T')[0];
+function hoy() {
+  const fecha = new Date();
 
-document.getElementById("fechaDesde").value = hoy;
-document.getElementById("fechaHasta").value = hoy;
+  const yyyy = fecha.getFullYear();
+  const mm = String(fecha.getMonth() + 1).padStart(2, '0');
+  const dd = String(fecha.getDate()).padStart(2, '0');
+
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+document.getElementById("fechaDesde").value = hoy();
+document.getElementById("fechaHasta").value = hoy();
 
 document.getElementById("userInfo").innerText =
   `Usuario: ${usuarioLogueado} | ${new Date().toLocaleString()}`;
 
-cargarUsuarios();
+// =========================================
+// INICIO
+// =========================================
+window.addEventListener(
+  "DOMContentLoaded",
+  async () => {
+
+    await cargarUsuarios();
+    await buscarRecargas();
+
+  }
+
+);
 </script>
 </body>
 </html>
