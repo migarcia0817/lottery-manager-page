@@ -89,11 +89,11 @@ button.btn-eliminar { background:#dc3545; color:white; padding:6px 12px; border:
     <button style="padding:10px 20px; background:#6c757d; color:white; border:none; border-radius:5px; cursor:pointer;" onclick="window.location.href='principal.html'">Regresar</button>
   </div>
 </div>
+
 <script src="config.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
 import { getDatabase, ref, set, get, child, push, remove } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
-
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -118,7 +118,8 @@ if (!userData || userData.tipo !== "Administrador") {
   window.location.href = "index.html";
 }
 
-document.getElementById("userInfo").innerHTML = `Admin: ${userData.nombre} | ${new Date().toLocaleDateString()}`;
+document.getElementById("userInfo").innerHTML =
+  `Admin: ${userData.nombre} | ${new Date().toLocaleDateString()}`;
 
 const comboSupervisor = document.getElementById("comboSupervisor");
 const comboUsuariosGrupo = document.getElementById("comboUsuariosGrupo");
@@ -128,50 +129,65 @@ const tbodyGrupos = document.getElementById("tbodyGrupos");
 let seleccionadosIds = [];
 let usuariosDataMap = {}; 
 
+// =========================
+// CARGAR USUARIOS
+// =========================
 async function cargarUsuarios() {
   try {
     const snap = await get(child(ref(db), "Usuarios"));
     const data = snap.val() || {};
-    
+
     comboSupervisor.innerHTML = '<option value="">Seleccione ADM</option>';
     comboUsuariosGrupo.innerHTML = '<option value="">Seleccione Integrante</option>';
-    
+
     usuariosDataMap = {};
 
     for (const uid in data) {
       const u = data[uid];
       const nombreMostrar = u.NombreUsuario || u.Nombre || "Sin nombre";
-      const idInterno = u.Id || uid; 
+      const idInterno = u.Id || uid;
+
       usuariosDataMap[idInterno] = nombreMostrar;
+
       const tipoUser = (u.TipoUsuario || u.tipo || u.Tipo || "").toString().toUpperCase();
 
       if (tipoUser === "ADM") {
         comboSupervisor.innerHTML += `<option value="${idInterno}">${nombreMostrar}</option>`;
       }
+
       comboUsuariosGrupo.innerHTML += `<option value="${idInterno}">${nombreMostrar}</option>`;
     }
-    cargarTablaGrupos();
-  } catch (error) { console.error(error); }
+  } catch (error) {
+    console.error(error);
+  }
 }
 
+// =========================
+// AGREGAR USUARIO
+// =========================
 document.getElementById("agregarUsuarioBtn").addEventListener("click", () => {
-  const id = comboUsuariosGrupo.value; 
+  const id = comboUsuariosGrupo.value;
   if (!id) return;
   if (seleccionadosIds.includes(id)) return alert("Ya está en la lista");
+
   seleccionadosIds.push(id);
   renderSeleccionados();
 });
 
 function renderSeleccionados() {
   if (seleccionadosIds.length === 0) {
-    grupoContainer.innerHTML = '<span style="color: #666;">Usuarios seleccionados aparecerán aquí...</span>';
+    grupoContainer.innerHTML =
+      '<span style="color: #666;">Usuarios seleccionados aparecerán aquí...</span>';
     return;
   }
+
   grupoContainer.innerHTML = "";
+
   seleccionadosIds.forEach(id => {
     const div = document.createElement("div");
     div.className = "usuarioItem";
-    div.innerHTML = `${usuariosDataMap[id]} <button onclick="quitarUsuario('${id}')">X</button>`;
+    div.innerHTML =
+      `${usuariosDataMap[id]} <button onclick="quitarUsuario('${id}')">X</button>`;
     grupoContainer.appendChild(div);
   });
 }
@@ -181,6 +197,9 @@ window.quitarUsuario = (id) => {
   renderSeleccionados();
 };
 
+// =========================
+// GUARDAR GRUPO
+// =========================
 document.getElementById("guardarGrupoBtn").addEventListener("click", async () => {
   const supervisorId = comboSupervisor.value;
   const userNom = document.getElementById("grupoUsuario").value;
@@ -192,6 +211,7 @@ document.getElementById("guardarGrupoBtn").addEventListener("click", async () =>
   }
 
   const nuevoGrupoRef = push(ref(db, "GruposRecarga"));
+
   const datosGrupo = {
     idGrupo: nuevoGrupoRef.key,
     supervisorId: supervisorId,
@@ -206,40 +226,64 @@ document.getElementById("guardarGrupoBtn").addEventListener("click", async () =>
     await set(nuevoGrupoRef, datosGrupo);
     alert("Grupo guardado con éxito");
     location.reload();
-  } catch (e) { console.error(e); }
+  } catch (e) {
+    console.error(e);
+  }
 });
 
+// =========================
+// CARGAR TABLA
+// =========================
 async function cargarTablaGrupos() {
   const snap = await get(child(ref(db), "GruposRecarga"));
   const data = snap.val() || {};
+
   tbodyGrupos.innerHTML = "";
 
   for (const key in data) {
     const g = data[key];
+
     const tr = document.createElement("tr");
 
-    // MAPEADO: Convierte los IDs de la base de datos a Nombres reales
-    const nombresIntegrantes = (g.integrantes || []).map(id => usuariosDataMap[id] || id).join(", ");
+    // 🔥 supervisor correcto
+    const supervisorNombre =
+      usuariosDataMap[String(g.SupervisorId)] ||
+      g.SupervisorNombre ||
+      "Sin nombre";
+
+    // 🔥 integrantes correcto (IMPORTANTE: MAYÚSCULA I)
+    const nombresIntegrantes = (g.Integrantes || [])
+      .map(id => usuariosDataMap[String(id)] || id)
+      .join(", ");
 
     tr.innerHTML = `
-      <td>${g.idGrupo.substring(0, 6)}...</td>
-      <td>${g.supervisorNombre || "Sin nombre"}</td>
-      <td>${g.usuarioAcceso}</td>
+      <td>${g.IdGrupo ? g.IdGrupo.substring(0, 6) + "..." : key.substring(0,6)}</td>
+      <td>${supervisorNombre}</td>
+      <td>${g.UsuarioAcceso || ""}</td>
       <td>${nombresIntegrantes}</td>
-      <td><button class="btn-eliminar" onclick="eliminarGrupo('${key}')">Eliminar</button></td>
+      <td>
+        <button class="btn-eliminar" onclick="eliminarGrupo('${key}')">Eliminar</button>
+      </td>
     `;
+
     tbodyGrupos.appendChild(tr);
   }
 }
 
-
 window.eliminarGrupo = async (id) => {
-    if(!confirm("¿Eliminar este grupo?")) return;
-    await remove(ref(db, `GruposRecarga/${id}`));
-    location.reload();
+  if (!confirm("¿Eliminar este grupo?")) return;
+  await remove(ref(db, `GruposRecarga/${id}`));
+  location.reload();
 };
 
-cargarUsuarios();
+// =========================
+// INICIO CORRECTO
+// =========================
+window.addEventListener("DOMContentLoaded", async () => {
+  await cargarUsuarios();
+  await cargarTablaGrupos();
+});
+
 </script>
 </body>
 </html>
