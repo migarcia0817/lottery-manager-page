@@ -99,7 +99,6 @@ th { background:#512BD4; color:white; }
 <tr>
 <th>Banca</th>
 <th>Venta</th>
-<th>Recargas</th>
 <th>Comisión</th>
 <th>Premio</th>
 <th>Total</th>
@@ -116,7 +115,7 @@ th { background:#512BD4; color:white; }
   <div>Neto: <span id="totalNeto">0</span></div>
 </div>
 
-<script src="config.js"></script>  
+<script src="config.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
 import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
@@ -210,25 +209,19 @@ async function buscarVentas() {
     .filter(v => v !== "");
 
   const tbody = document.getElementById("tablaVentas");
-  tbody.innerHTML = "<tr><td colspan='6'>Cargando...</td></tr>";
+  tbody.innerHTML = "<tr><td colspan='5'>Cargando...</td></tr>";
 
-  // 🔥 CARGAR TODO
+  // 🔥 SOLO VENTAS Y COMISIONES
   const [
     snapVentas,
-    snapComisiones,
-    snapRecargas,
-    snapPaqueticos
+    snapComisiones
   ] = await Promise.all([
     get(child(ref(db), "ventas")),
-    get(child(ref(db), "Comisiones")),
-    get(child(ref(db), "Recargas")),
-    get(child(ref(db), "Paqueticos"))
+    get(child(ref(db), "Comisiones"))
   ]);
 
   const ventas = snapVentas.val() || {};
   const comisionesDB = snapComisiones.val() || {};
-  const recargasDB = snapRecargas.val() || {};
-  const paqueticosDB = snapPaqueticos.val() || {};
 
   const agrupado = {};
 
@@ -251,7 +244,6 @@ async function buscarVentas() {
       v.NombreUsuario ||
       "Desconocido";
 
-    // 🔥 BUSCAR ALIAS
     const userIdActual = String(
       v.idUsuario ||
       v.IdUsuario ||
@@ -267,51 +259,38 @@ async function buscarVentas() {
       const usr = usuariosDBGlobal[uid];
 
       if (String(usr.Id) === userIdActual) {
-
-        aliasUsuario =
-          usr.Alias ||
-          usr.alias ||
-          "";
-
+        aliasUsuario = usr.Alias || "";
         break;
       }
     }
 
     const nombreMostrar =
       aliasUsuario
-      ? `${usuario}/${aliasUsuario}`
-      : usuario;
+        ? `${usuario}/${aliasUsuario}`
+        : usuario;
 
     const tipo = usuarioGuardado?.tipo || "";
 
     if (
-      tipo !== "Administrador"
-      &&
+      tipo !== "Administrador" &&
       !permitidos.includes(usuario)
     ) continue;
 
     if (usuarioSel && usuario !== usuarioSel) continue;
 
     const esGanador =
-      v.EsGanador ??
-      v.esGanador ??
-      false;
+      v.EsGanador ?? v.esGanador ?? false;
 
     const premioCalculado =
-      v.PremioCalculado ??
-      v.premioCalculado ??
-      0;
+      v.PremioCalculado ?? v.premioCalculado ?? 0;
 
     const premio =
-      esGanador
-      ? Number(premioCalculado)
-      : 0;
+      esGanador ? Number(premioCalculado) : 0;
 
     if (!agrupado[nombreMostrar]) {
 
       agrupado[nombreMostrar] = {
         venta: 0,
-        recarga: 0,
         comision: 0,
         premio: 0,
         neto: 0
@@ -335,7 +314,6 @@ async function buscarVentas() {
       userIdVenta &&
       comisionesDB[userIdVenta]?.porcentaje
     ) {
-
       porcentaje =
         Number(comisionesDB[userIdVenta].porcentaje);
     }
@@ -353,153 +331,10 @@ async function buscarVentas() {
   }
 
   // =========================================
-  // RECARGAS
-  // =========================================
- for (const id in recargasDB) {
-
-  const r = recargasDB[id];
-  if (!r) continue;
-
-  const fecha =
-    String(r.fecha || "")
-    .substring(0, 10);
-
-  if (fecha < desde || fecha > hasta) continue;
-
-  // 🔥 USAR BRANCH = IDUSUARIO
-  const branchId =
-    String(r.branch ?? "").trim();
-
-  // 🔥 BUSCAR NOMBRE DEL USUARIO
-  let usuario = "";
-  let aliasUsuario = "";
-
-  for (const uid in usuariosDBGlobal) {
-
-    const u = usuariosDBGlobal[uid];
-
-    if (String(u.Id) === branchId) {
-
-      usuario = u.NombreUsuario;
-
-      aliasUsuario =
-        u.Alias ||
-        u.alias ||
-        "";
-
-      break;
-    }
-  }
-
-  if (!usuario) continue;
-
-  const nombreMostrar =
-    aliasUsuario
-    ? `${usuario}/${aliasUsuario}`
-    : usuario;
-
-  const tipo = usuarioGuardado?.tipo || "";
-
-  if (
-    tipo !== "Administrador"
-    &&
-    !permitidos.includes(usuario)
-  ) continue;
-
-  if (usuarioSel && usuario !== usuarioSel) continue;
-
-  if (!agrupado[nombreMostrar]) {
-
-    agrupado[nombreMostrar] = {
-      venta: 0,
-      recarga: 0,
-      comision: 0,
-      premio: 0,
-      neto: 0
-    };
-  }
-
-  agrupado[nombreMostrar].recarga +=
-    Number(r.amount || 0);
-}
-
-// =========================================
-// PAQUETICOS
-// =========================================
-for (const id in paqueticosDB) {
-
-  const p = paqueticosDB[id];
-  if (!p) continue;
-
-  const fecha =
-    String(p.fecha || "")
-    .substring(0, 10);
-
-  if (fecha < desde || fecha > hasta) continue;
-
-  // 🔥 USAR BRANCH = IDUSUARIO
-  const branchId =
-    String(p.branch ?? "").trim();
-
-  // 🔥 BUSCAR NOMBRE DEL USUARIO
-  let usuario = "";
-  let aliasUsuario = "";
-
-  for (const uid in usuariosDBGlobal) {
-
-    const u = usuariosDBGlobal[uid];
-
-    if (String(u.Id) === branchId) {
-
-      usuario = u.NombreUsuario;
-
-      aliasUsuario =
-        u.Alias ||
-        u.alias ||
-        "";
-
-      break;
-    }
-  }
-
-  if (!usuario) continue;
-
-  const nombreMostrar =
-    aliasUsuario
-    ? `${usuario}/${aliasUsuario}`
-    : usuario;
-
-  const tipo = usuarioGuardado?.tipo || "";
-
-  if (
-    tipo !== "Administrador"
-    &&
-    !permitidos.includes(usuario)
-  ) continue;
-
-  if (usuarioSel && usuario !== usuarioSel) continue;
-
-  if (!agrupado[nombreMostrar]) {
-
-    agrupado[nombreMostrar] = {
-      venta: 0,
-      recarga: 0,
-      comision: 0,
-      premio: 0,
-      neto: 0
-    };
-  }
-
-  agrupado[nombreMostrar].recarga +=
-    Number(p.amount || 0);
-}
-
-  // =========================================
   // MOSTRAR TABLA
   // =========================================
   let tB = 0;
   let tV = 0;
-  let tR = 0;
   let tC = 0;
   let tP = 0;
   let tN = 0;
@@ -512,20 +347,18 @@ for (const id in paqueticosDB) {
 
     tB++;
     tV += v.venta;
-    tR += v.recarga;
     tC += v.comision;
     tP += v.premio;
     tN += v.neto;
 
     tbody.innerHTML += `
-    <tr>
-      <td>${u}</td>
-      <td>${v.venta.toFixed(2)}</td>
-      <td>${v.recarga.toFixed(2)}</td>
-      <td>${v.comision.toFixed(2)}</td>
-      <td>${v.premio.toFixed(2)}</td>
-      <td>${v.neto.toFixed(2)}</td>
-    </tr>`;
+      <tr>
+        <td>${u}</td>
+        <td>${v.venta.toFixed(2)}</td>
+        <td>${v.comision.toFixed(2)}</td>
+        <td>${v.premio.toFixed(2)}</td>
+        <td>${v.neto.toFixed(2)}</td>
+      </tr>`;
   }
 
   totalBanca.textContent = tB;
