@@ -116,7 +116,6 @@ th { background:#512BD4; color:white; position:sticky; top:0; }
       <tr>
         <th>Usuario</th>
         <th>Total Venta</th>
-        <th>Total Recargas</th>
         <th>Total Comisión</th>
         <th>Total Premio</th>
         <th>Total Neto</th>
@@ -133,8 +132,7 @@ th { background:#512BD4; color:white; position:sticky; top:0; }
   <div>Total Neto: <span id="totalNeto">0</span></div>
 </div>
 
-
-<script src="config.js"></script>  
+<script src="config.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
 import { getDatabase, ref, get, child } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
@@ -241,6 +239,7 @@ async function cargarUsuarios() {
 }
 
 async function buscarVentas() {
+
   const usuarioSel = document.getElementById("comboUsuario").value;
   const desde = document.getElementById("fechaDesde").value;
   const hasta = document.getElementById("fechaHasta").value;
@@ -259,32 +258,26 @@ async function buscarVentas() {
   const tbody = document.getElementById("tablaVentas");
 
   tbody.innerHTML =
-    "<tr><td colspan='6'>Cargando...</td></tr>";
+    "<tr><td colspan='5'>Cargando...</td></tr>";
 
-  // 🔥 CARGAR TODO
+  // 🔥 SOLO CARGAMOS LO NECESARIO
   const [
     snapVentas,
     snapComisiones,
-    snapRecargas,
-    snapPaqueticos,
     snapUsuarios
   ] = await Promise.all([
     get(child(ref(db), "ventas")),
     get(child(ref(db), "Comisiones")),
-    get(child(ref(db), "Recargas")),
-    get(child(ref(db), "Paqueticos")),
     get(child(ref(db), "Usuarios"))
   ]);
 
   const ventas = snapVentas.val() || {};
-  const recargasDB = snapRecargas.val() || {};
-  const paqueticosDB = snapPaqueticos.val() || {};
+  const comisionesDB = snapComisiones.val() || {};
   const usuariosDB = snapUsuarios.val() || {};
 
   const usuariosTotales = {};
 
   let totalVenta = 0;
-  let totalRecarga = 0;
   let totalComision = 0;
   let totalPremio = 0;
   let totalNeto = 0;
@@ -292,7 +285,7 @@ async function buscarVentas() {
   const tipo = usuarioGuardado?.tipo || "";
 
   // =====================================
-  // 🔥 MAPA ID -> USUARIO/ALIAS
+  // MAPA USUARIOS
   // =====================================
   const mapaUsuarios = {};
 
@@ -300,22 +293,15 @@ async function buscarVentas() {
 
     const u = usuariosDB[uid];
 
-    const nombre =
-      u.NombreUsuario || "";
-
-    const alias =
-      u.alias ||
-      u.Alias ||
-      "";
+    const nombre = u.NombreUsuario || "";
+    const alias = u.alias || u.Alias || "";
 
     mapaUsuarios[String(u.Id)] =
-      alias
-      ? `${nombre}/${alias}`
-      : nombre;
+      alias ? `${nombre}/${alias}` : nombre;
   }
 
   // =====================================
-  // 🔥 VENTAS
+  // VENTAS
   // =====================================
   for (const id in ventas) {
 
@@ -358,11 +344,9 @@ async function buscarVentas() {
 
     const fechaStr =
       `${fechaVenta.getFullYear()}-${
-        String(fechaVenta.getMonth() + 1)
-        .padStart(2,'0')
+        String(fechaVenta.getMonth() + 1).padStart(2,'0')
       }-${
-        String(fechaVenta.getDate())
-        .padStart(2,'0')
+        String(fechaVenta.getDate()).padStart(2,'0')
       }`;
 
     if (fechaStr < desde || fechaStr > hasta)
@@ -396,10 +380,8 @@ async function buscarVentas() {
       ventaMonto - premio - comision;
 
     if (!usuariosTotales[usuarioVenta]) {
-
       usuariosTotales[usuarioVenta] = {
         venta: 0,
-        recarga: 0,
         comision: 0,
         premio: 0,
         neto: 0
@@ -413,109 +395,7 @@ async function buscarVentas() {
   }
 
   // =====================================
-  // 🔥 RECARGAS
-  // =====================================
-  for (const id in recargasDB) {
-
-    const r = recargasDB[id];
-    if (!r) continue;
-
-    const fecha =
-      String(r.fecha || "")
-      .substring(0, 10);
-
-    if (fecha < desde || fecha > hasta)
-      continue;
-
-    const branchId =
-      String(r.branch ?? "").trim();
-
-    const usuario =
-      mapaUsuarios[branchId];
-
-    if (!usuario) continue;
-
-    const nombreBase =
-      usuario.split("/")[0];
-
-    if (
-      tipo !== "Administrador" &&
-      !permitidos.includes(nombreBase)
-    ) continue;
-
-    if (
-      usuarioSel !== "todos" &&
-      nombreBase !== usuarioSel
-    ) continue;
-
-    if (!usuariosTotales[usuario]) {
-
-      usuariosTotales[usuario] = {
-        venta: 0,
-        recarga: 0,
-        comision: 0,
-        premio: 0,
-        neto: 0
-      };
-    }
-
-    usuariosTotales[usuario].recarga +=
-      Number(r.amount || 0);
-  }
-
-  // =====================================
-  // 🔥 PAQUETICOS
-  // =====================================
-  for (const id in paqueticosDB) {
-
-    const p = paqueticosDB[id];
-    if (!p) continue;
-
-    const fecha =
-      String(p.fecha || "")
-      .substring(0, 10);
-
-    if (fecha < desde || fecha > hasta)
-      continue;
-
-    const branchId =
-      String(p.branch ?? "").trim();
-
-    const usuario =
-      mapaUsuarios[branchId];
-
-    if (!usuario) continue;
-
-    const nombreBase =
-      usuario.split("/")[0];
-
-    if (
-      tipo !== "Administrador" &&
-      !permitidos.includes(nombreBase)
-    ) continue;
-
-    if (
-      usuarioSel !== "todos" &&
-      nombreBase !== usuarioSel
-    ) continue;
-
-    if (!usuariosTotales[usuario]) {
-
-      usuariosTotales[usuario] = {
-        venta: 0,
-        recarga: 0,
-        comision: 0,
-        premio: 0,
-        neto: 0
-      };
-    }
-
-    usuariosTotales[usuario].recarga +=
-      Number(p.amount || 0);
-  }
-
-  // =====================================
-  // 🔥 TABLA
+  // TABLA
   // =====================================
   tbody.innerHTML = "";
 
@@ -524,7 +404,6 @@ async function buscarVentas() {
     const v = usuariosTotales[usuario];
 
     totalVenta += v.venta;
-    totalRecarga += v.recarga;
     totalComision += v.comision;
     totalPremio += v.premio;
     totalNeto += v.neto;
@@ -533,12 +412,12 @@ async function buscarVentas() {
       <tr>
         <td>${usuario}</td>
         <td>${v.venta.toFixed(2)}</td>
-        <td>${v.recarga.toFixed(2)}</td>
         <td>${v.comision.toFixed(2)}</td>
         <td>${v.premio.toFixed(2)}</td>
         <td>${v.neto.toFixed(2)}</td>
       </tr>`;
   }
+
 
   document.getElementById("totalVenta").textContent =
     totalVenta.toFixed(2);
