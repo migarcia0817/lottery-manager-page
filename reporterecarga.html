@@ -590,6 +590,84 @@ async function buscarRecargas() {
   }
 
   // ================================
+// PAQUETICOS
+// ================================
+for (const id in paqueticosDB) {
+
+  const p = paqueticosDB[id];
+
+  if (!p) continue;
+
+  const fecha = String(p.Fecha || "")
+    .slice(0, 10)
+    .trim();
+
+  if (!fecha) continue;
+
+  if (fecha < desde || fecha > hasta)
+    continue;
+
+  const branchId = String(
+    p.Branch ?? ""
+  ).trim();
+
+  let usuario = "";
+  let aliasUsuario = "";
+  let porcentaje = 0;
+
+  for (const uid in usuariosDB) {
+
+    const u = usuariosDB[uid];
+
+    if (String(u.Id) === branchId) {
+
+      usuario = u.NombreUsuario;
+
+      aliasUsuario = u.Alias || "";
+
+      porcentaje = Number(
+        u.ComisionRecarga || 0
+      );
+
+      break;
+    }
+  }
+
+  const nombreMostrar =
+    aliasUsuario
+    ? `${usuario}/${aliasUsuario}`
+    : usuario;
+
+  if (
+    tipoUsuario !== "Administrador" &&
+    !permitidos.includes(usuario)
+  ) continue;
+
+  if (
+    usuarioSel &&
+    usuario !== usuarioSel
+  ) continue;
+
+  if (!agrupado[nombreMostrar]) {
+
+    agrupado[nombreMostrar] = {
+      total: 0,
+      porcComision: porcentaje
+    };
+  }
+
+  // 🔥 USAR AMOUNT
+  const monto = Number(
+    p.Amount || 0
+  );
+
+  if (monto > 0) {
+
+    agrupado[nombreMostrar].total += monto;
+  }
+}
+
+  // ================================
   // MOSTRAR
   // ================================
   tbody.innerHTML = "";
@@ -692,13 +770,16 @@ document.getElementById(
 ).onclick = buscarRecargas;
 
 function hoy() {
-  const fecha = new Date();
 
-  const yyyy = fecha.getFullYear();
-  const mm = String(fecha.getMonth() + 1).padStart(2, '0');
-  const dd = String(fecha.getDate()).padStart(2, '0');
+  const now = new Date();
 
-  return `${yyyy}-${mm}-${dd}`;
+  const fechaLocal = new Date(
+    now.getTime() - now.getTimezoneOffset() * 60000
+  );
+
+  return fechaLocal
+    .toISOString()
+    .split("T")[0];
 }
 
 document.getElementById("fechaDesde").value = hoy();
