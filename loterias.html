@@ -285,40 +285,87 @@ async function cargarTabla(){
   tbody.innerHTML = "<tr><td colspan='9'>Cargando...</td></tr>";
 
   try{
-    const usuariosSnap = await get(child(ref(db), "Usuarios"));
-    const multipSnap = await get(child(ref(db), "MultiplicadoresPremios"));
-    const usuariosData = usuariosSnap.val() || {};
-    const multipData = multipSnap.val() || {};
+
+    const usuariosSnap =
+      await get(child(ref(db), "Usuarios"));
+
+    const multipSnap =
+      await get(child(ref(db), "MultiplicadoresPremios"));
+
+    const usuariosData =
+      usuariosSnap.val() || {};
+
+    const multipData =
+      multipSnap.val() || {};
 
     tbody.innerHTML = "";
 
     for(const uid in usuariosData){
-      const usuario = usuariosData[uid];
 
-      // 👑 ADMINISTRADOR VE TODOS, ADM VE SOLO SU ASIGNADO
-      if(usuarioGuardado.tipo !== "Administrador" &&
-         usuario.Asignado !== usuarioLogueado &&
-         usuario.NombreUsuario !== usuarioLogueado) continue;
+      const usuario =
+        usuariosData[uid];
 
-      // 🔥 CAMBIO IMPORTANTE: usar ID real del usuario (84)
-      const idUsuario = usuario.Id;
-      const multip = multipData[idUsuario] || DEFAULT_MULTIPLIERS;
+      // 👑 ADMINISTRADOR VE TODOS
+      if(
+        usuarioGuardado.tipo !== "Administrador" &&
+        usuario.Asignado !== usuarioLogueado &&
+        usuario.NombreUsuario !== usuarioLogueado
+      ) continue;
 
-      tbody.innerHTML += `<tr>
+      // 🔥 ID REAL
+      const idUsuario =
+        usuario.Id;
+
+      // 🔥 SI NO EXISTE => {}
+      const multip =
+        multipData[idUsuario] || {};
+
+      tbody.innerHTML += `
+      <tr>
+
         <td>${usuario.NombreUsuario}</td>
-        <td>${multip.Primera || DEFAULT_MULTIPLIERS.Primera}</td>
-        <td>${multip.Segunda || DEFAULT_MULTIPLIERS.Segunda}</td>
-        <td>${multip.Tercera || DEFAULT_MULTIPLIERS.Tercera}</td>
-        <td>${multip.Pale12_13 || DEFAULT_MULTIPLIERS.Pale12_13}</td>
-        <td>${multip.Pale23 || DEFAULT_MULTIPLIERS.Pale23}</td>
-        <td>${multip.TripletaCompleta || DEFAULT_MULTIPLIERS.TripletaCompleta}</td>
-        <td>${multip.TripletaParcial || DEFAULT_MULTIPLIERS.TripletaParcial}</td>
-        <td>${multip.SuperPale || DEFAULT_MULTIPLIERS.SuperPale}</td>
+
+        <td>${Number(
+          multip.Primera || 0
+        ).toFixed(2)}</td>
+
+        <td>${Number(
+          multip.Segunda || 0
+        ).toFixed(2)}</td>
+
+        <td>${Number(
+          multip.Tercera || 0
+        ).toFixed(2)}</td>
+
+        <td>${Number(
+          multip.Pale12_13 || 0
+        ).toFixed(2)}</td>
+
+        <td>${Number(
+          multip.Pale23 || 0
+        ).toFixed(2)}</td>
+
+        <td>${Number(
+          multip.TripletaCompleta || 0
+        ).toFixed(2)}</td>
+
+        <td>${Number(
+          multip.TripletaParcial || 0
+        ).toFixed(2)}</td>
+
+        <td>${Number(
+          multip.SuperPale || 0
+        ).toFixed(2)}</td>
+
       </tr>`;
     }
 
   }catch(e){
-    alert("Error cargando tabla: "+e.message);
+
+    alert(
+      "Error cargando tabla: " +
+      e.message
+    );
   }
 }
 
