@@ -96,7 +96,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase
 import { getDatabase, ref, set, get, child, push, remove } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
 const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+
+// 🔥 NUEVA BASE DE DATOS
+const db = getDatabase(
+  app,
+  "https://recargaypauqticos-default-rtdb.firebaseio.com/"
+);
 
 let tiempoInactivo;
 const LIMITE = 10 * 60 * 1000;
@@ -167,66 +172,121 @@ async function cargarUsuarios() {
 // =========================
 document.getElementById("agregarUsuarioBtn").addEventListener("click", () => {
   const id = comboUsuariosGrupo.value;
+
   if (!id) return;
-  if (seleccionadosIds.includes(id)) return alert("Ya está en la lista");
+
+  if (seleccionadosIds.includes(id))
+    return alert("Ya está en la lista");
 
   seleccionadosIds.push(id);
+
   renderSeleccionados();
 });
 
 function renderSeleccionados() {
+
   if (seleccionadosIds.length === 0) {
+
     grupoContainer.innerHTML =
       '<span style="color: #666;">Usuarios seleccionados aparecerán aquí...</span>';
+
     return;
   }
 
   grupoContainer.innerHTML = "";
 
   seleccionadosIds.forEach(id => {
+
     const div = document.createElement("div");
+
     div.className = "usuarioItem";
+
     div.innerHTML =
       `${usuariosDataMap[id]} <button onclick="quitarUsuario('${id}')">X</button>`;
+
     grupoContainer.appendChild(div);
   });
 }
 
 window.quitarUsuario = (id) => {
-  seleccionadosIds = seleccionadosIds.filter(item => item !== id);
+
+  seleccionadosIds =
+    seleccionadosIds.filter(item => item !== id);
+
   renderSeleccionados();
 };
 
 // =========================
 // GUARDAR GRUPO
 // =========================
-document.getElementById("guardarGrupoBtn").addEventListener("click", async () => {
-  const supervisorId = comboSupervisor.value;
-  const userNom = document.getElementById("grupoUsuario").value;
-  const pass = document.getElementById("grupoPass").value;
+document.getElementById("guardarGrupoBtn")
+.addEventListener("click", async () => {
 
-  if (!supervisorId || !userNom || !pass || seleccionadosIds.length === 0) {
+  const supervisorId =
+    comboSupervisor.value;
+
+  const userNom =
+    document.getElementById("grupoUsuario").value;
+
+  const pass =
+    document.getElementById("grupoPass").value;
+
+  if (
+    !supervisorId ||
+    !userNom ||
+    !pass ||
+    seleccionadosIds.length === 0
+  ) {
+
     alert("Complete todos los campos.");
+
     return;
   }
 
-  const nuevoGrupoRef = push(ref(db, "GruposRecarga"));
+  const nuevoGrupoRef =
+    push(ref(db, "GruposRecarga"));
 
+  // 🔥 ESTANDARIZADO
   const datosGrupo = {
-    idGrupo: nuevoGrupoRef.key,
-    supervisorId: supervisorId,
-    supervisorNombre: usuariosDataMap[supervisorId],
-    usuarioAcceso: userNom,
-    password: pass,
-    integrantes: seleccionadosIds,
-    fechaCreacion: new Date().toISOString()
+
+    IdGrupo:
+      nuevoGrupoRef.key,
+
+    SupervisorId:
+      supervisorId,
+
+    SupervisorNombre:
+      usuariosDataMap[supervisorId] || "",
+
+    UsuarioAcceso:
+      userNom,
+
+    Password:
+      pass,
+
+    Integrantes:
+      seleccionadosIds,
+
+    FechaCreacion:
+      new Date().toISOString(),
+
+    Balance:
+      "$0.00"
   };
 
   try {
-    await set(nuevoGrupoRef, datosGrupo);
+
+    await set(
+      nuevoGrupoRef,
+      datosGrupo
+    );
+
     alert("Grupo guardado con éxito");
+
     location.reload();
+
   } catch (e) {
+
     console.error(e);
   }
 });
@@ -235,34 +295,89 @@ document.getElementById("guardarGrupoBtn").addEventListener("click", async () =>
 // CARGAR TABLA
 // =========================
 async function cargarTablaGrupos() {
-  const snap = await get(child(ref(db), "GruposRecarga"));
-  const data = snap.val() || {};
+
+  const snap =
+    await get(
+      child(ref(db), "GruposRecarga")
+    );
+
+  const data =
+    snap.val() || {};
 
   tbodyGrupos.innerHTML = "";
 
   for (const key in data) {
+
     const g = data[key];
 
-    const tr = document.createElement("tr");
+    const tr =
+      document.createElement("tr");
 
-    // 🔥 supervisor correcto
+    // 🔥 SOPORTA VIEJOS Y NUEVOS
     const supervisorNombre =
-      usuariosDataMap[String(g.SupervisorId)] ||
+
+      usuariosDataMap[
+        String(
+          g.SupervisorId ||
+          g.supervisorId
+        )
+      ] ||
+
       g.SupervisorNombre ||
+      g.supervisorNombre ||
+
       "Sin nombre";
 
-    // 🔥 integrantes correcto (IMPORTANTE: MAYÚSCULA I)
-    const nombresIntegrantes = (g.Integrantes || [])
-      .map(id => usuariosDataMap[String(id)] || id)
+    // 🔥 SOPORTA VIEJOS Y NUEVOS
+    const nombresIntegrantes =
+
+      (
+        g.Integrantes ||
+        g.integrantes ||
+        []
+      )
+
+      .map(id =>
+        usuariosDataMap[String(id)] || id
+      )
+
       .join(", ");
 
     tr.innerHTML = `
-      <td>${g.IdGrupo ? g.IdGrupo.substring(0, 6) + "..." : key.substring(0,6)}</td>
-      <td>${supervisorNombre}</td>
-      <td>${g.UsuarioAcceso || ""}</td>
-      <td>${nombresIntegrantes}</td>
       <td>
-        <button class="btn-eliminar" onclick="eliminarGrupo('${key}')">Eliminar</button>
+        ${
+          (
+            g.IdGrupo ||
+            g.idGrupo
+          )
+
+          ? (
+              g.IdGrupo ||
+              g.idGrupo
+            ).substring(0, 6) + "..."
+
+          : key.substring(0,6)
+        }
+      </td>
+
+      <td>${supervisorNombre}</td>
+
+      <td>
+        ${
+          g.UsuarioAcceso ||
+          g.usuarioAcceso ||
+          ""
+        }
+      </td>
+
+      <td>${nombresIntegrantes}</td>
+
+      <td>
+        <button
+          class="btn-eliminar"
+          onclick="eliminarGrupo('${key}')">
+          Eliminar
+        </button>
       </td>
     `;
 
@@ -271,18 +386,29 @@ async function cargarTablaGrupos() {
 }
 
 window.eliminarGrupo = async (id) => {
-  if (!confirm("¿Eliminar este grupo?")) return;
-  await remove(ref(db, `GruposRecarga/${id}`));
+
+  if (!confirm("¿Eliminar este grupo?"))
+    return;
+
+  await remove(
+    ref(db, `GruposRecarga/${id}`)
+  );
+
   location.reload();
 };
 
 // =========================
-// INICIO CORRECTO
+// INICIO
 // =========================
-window.addEventListener("DOMContentLoaded", async () => {
-  await cargarUsuarios();
-  await cargarTablaGrupos();
-});
+window.addEventListener(
+  "DOMContentLoaded",
+  async () => {
+
+    await cargarUsuarios();
+
+    await cargarTablaGrupos();
+  }
+);
 
 </script>
 </body>
