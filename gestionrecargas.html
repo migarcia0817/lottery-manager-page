@@ -307,7 +307,12 @@ import { getDatabase, ref, set, get, child, onValue, remove } from "https://www.
 
 
 const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+
+// 🔥 NUEVA BASE DE DATOS
+const db = getDatabase(
+  app,
+  "https://recargaypauqticos-default-rtdb.firebaseio.com/"
+);
 
 let tiempoInactivo;
 const LIMITE = 10 * 60 * 1000;
@@ -501,10 +506,8 @@ async function obtenerBalance(usuarioId) {
 
       const g = grupos[key];
 
-      // 👇 Integrantes como array real
       const integrantes = g.Integrantes || [];
 
-      // verificar si el usuario está en el grupo
       if (Array.isArray(integrantes)) {
 
         if (integrantes.includes(usuarioId.toString())) {
@@ -531,7 +534,7 @@ async function obtenerBalance(usuarioId) {
     return "0.00";
   }
 }
-// ================================
+
 // ================================
 function cargarTabla() {
 
@@ -554,11 +557,9 @@ function cargarTabla() {
           d.registradoPor === usuarioLogueado
         ) {
 
-          // 🔥 VENTAS DEL DÍA
           const ventasHoy =
             await obtenerVentasDiarias(d.idusuario);
 
-          // 🔥 BALANCE
           const balance =
             await obtenerBalance(d.idusuario);
 
@@ -593,9 +594,6 @@ async function obtenerVentasDiarias(usuarioId) {
 
     let total = 0;
 
-    // =========================
-    // FECHA HOY LOCAL
-    // =========================
     function hoy() {
 
       const now = new Date();
@@ -623,9 +621,6 @@ async function obtenerVentasDiarias(usuarioId) {
     const id =
       String(usuarioId ?? "").trim();
 
-    // =========================
-    // RECARGAS
-    // =========================
     const recargasSnap =
       await get(child(ref(db), "Recargas"));
 
@@ -654,9 +649,6 @@ async function obtenerVentasDiarias(usuarioId) {
       }
     }
 
-    // =========================
-    // PAQUETICOS
-    // =========================
     const paqueticosSnap =
       await get(child(ref(db), "Paqueticos"));
 
@@ -667,19 +659,16 @@ async function obtenerVentasDiarias(usuarioId) {
 
       const p = paqueticos[key];
 
-      // 🔥 FECHA
       const fecha =
         normalizarFecha(
           p.Fecha
         );
 
-      // 🔥 BRANCH
       const branch =
         String(
           p.Branch || ""
         ).trim();
 
-      // 🔥 SOLO AMOUNT
       const monto =
         parseFloat(
           p.Amount || 0
@@ -712,7 +701,6 @@ async function obtenerVentasDiarias(usuarioId) {
     return "0.00";
   }
 }
-
 
 window.eliminarLimite = (id) => {
   if (confirm("¿Borrar?")) {
