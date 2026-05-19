@@ -382,7 +382,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase
 import { getDatabase, ref, get, child, update } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
 const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+const db = getDatabase(
+  app,
+  "https://recargaypauqticos-default-rtdb.firebaseio.com/"
+);
 
 const usuarioGuardado =
   JSON.parse(localStorage.getItem("usuarioLogueado"));
