@@ -124,11 +124,11 @@ th { background:#512BD4; color:white; }
   </div>
 
 </div>
+
 <script src="config.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
 import { getDatabase, ref, get, child ,set} from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
-
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
@@ -617,11 +617,11 @@ window.guardarLimiteModal = async function(){
     for(const uid in usuarios){
       const u = usuarios[uid];
 
-      const key = `${u.Id}_${tipo}_NA`;
+      const key = `${String(u.Id)}_${tipo}_NA`;
 
       await set(ref(db,'LimitesVentas/'+key),{
         Key:key,
-        UsuarioId:u.Id,
+        UsuarioId: String(u.Id),   // 🔥 FIX CLAVE
         TipoJugada:tipo,
         Numero:"NA",
         Limite:limite,
@@ -630,7 +630,6 @@ window.guardarLimiteModal = async function(){
         Asignado:u.Asignado
       });
     }
-
   }
 
   // 👤 ADM → SOLO GRUPO ASIGNADO
@@ -641,11 +640,11 @@ window.guardarLimiteModal = async function(){
 
       if(u.Asignado !== usuarioLogueado) continue;
 
-      const key = `${u.Id}_${tipo}_NA`;
+      const key = `${String(u.Id)}_${tipo}_NA`;
 
       await set(ref(db,'LimitesVentas/'+key),{
         Key:key,
-        UsuarioId:u.Id,
+        UsuarioId: String(u.Id),   // 🔥 FIX CLAVE
         TipoJugada:tipo,
         Numero:"NA",
         Limite:limite,
@@ -654,7 +653,6 @@ window.guardarLimiteModal = async function(){
         Asignado:u.Asignado
       });
     }
-
   }
 
   // 👤 INDIVIDUAL
@@ -663,11 +661,11 @@ window.guardarLimiteModal = async function(){
     const u = Object.values(usuarios)
       .find(x => String(x.Id) === String(usuarioId));
 
-    const key = `${usuarioId}_${tipo}_NA`;
+    const key = `${String(usuarioId)}_${tipo}_NA`;
 
     await set(ref(db,'LimitesVentas/'+key),{
       Key:key,
-      UsuarioId:usuarioId,
+      UsuarioId: String(usuarioId), // 🔥 FIX CLAVE
       TipoJugada:tipo,
       Numero:"NA",
       Limite:limite,
