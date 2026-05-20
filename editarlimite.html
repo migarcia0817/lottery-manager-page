@@ -252,24 +252,27 @@ numeroInput.addEventListener("input", (e)=>{
   e.target.value = val;
 });
 
-/* 🔹 Guardar Límite */
-document.getElementById("guardarBtn").addEventListener("click", async ()=>{
+document.getElementById("guardarBtn").addEventListener("click", async () => {
 
   const usuarioId = comboUsuario.value.trim();
   const tipoJugada = tipoJugadaSelect.value;
-  const numero = numeroInput.value.trim() || null;
+
+  // 🔥 FIX IMPORTANTE: NUNCA null, siempre "NA"
+  const numero = numeroInput.value.trim() !== "" 
+    ? numeroInput.value.trim() 
+    : "NA";
 
   // 🔥 VALIDAR LIMITE
   const limiteInput = document.getElementById("limite").value.trim();
 
-  if(limiteInput === ""){
+  if (limiteInput === "") {
     alert("Debe ingresar un límite");
     return;
   }
 
   const limite = parseFloat(limiteInput);
 
-  if(isNaN(limite) || limite <= 0){
+  if (isNaN(limite) || limite <= 0) {
     alert("El límite debe ser mayor que cero");
     return;
   }
@@ -277,37 +280,37 @@ document.getElementById("guardarBtn").addEventListener("click", async ()=>{
   const bloqueado = document.getElementById("bloqueado").checked;
   const statusDiv = document.getElementById("status");
 
-  if(!usuarioId){
+  if (!usuarioId) {
     alert("Seleccione un usuario");
     return;
   }
 
-  if(!validarNumero(numero, tipoJugada)){
+  if (!validarNumero(numero === "NA" ? "" : numero, tipoJugada)) {
     alert("Número ingresado no cumple el formato para " + tipoJugada);
     return;
   }
-
 
   const snapUsuarios = await get(ref(db, "Usuarios"));
   const usuarios = snapUsuarios.val() || {};
 
   // 🔥 CASO "TODOS"
-  if(usuarioId === "TODOS"){
+  if (usuarioId === "TODOS") {
 
     let contador = 0;
 
-    for(const uid in usuarios){
+    for (const uid in usuarios) {
 
       const u = usuarios[uid];
 
-      // 🔥 SOLO USUARIOS ASIGNADOS AL LOGUEADO
-      if(u.Asignado !== usuarioLogueado) continue;
+      if (u.Asignado !== usuarioLogueado) continue;
 
-      const key = `${u.Id}_${tipoJugada}_${numero || 'NA'}`;
+      const id = String(u.Id);
+
+      const key = `${id}_${tipoJugada}_${numero}`;
 
       const data = {
         Key: key,
-        UsuarioId: u.Id,
+        UsuarioId: id,
         TipoJugada: tipoJugada,
         Numero: numero,
         Limite: limite,
@@ -316,7 +319,7 @@ document.getElementById("guardarBtn").addEventListener("click", async ()=>{
         Asignado: u.Asignado
       };
 
-      await set(ref(db,'LimitesVentas/'+key), data);
+      await set(ref(db, 'LimitesVentas/' + key), data);
       contador++;
     }
 
@@ -333,7 +336,7 @@ document.getElementById("guardarBtn").addEventListener("click", async ()=>{
     u => String(u.Id) === String(usuarioId)
   );
 
-  const key = `${usuarioId}_${tipoJugada}_${numero || 'NA'}`;
+  const key = `${usuarioId}_${tipoJugada}_${numero}`;
 
   const data = {
     Key: key,
@@ -346,22 +349,21 @@ document.getElementById("guardarBtn").addEventListener("click", async ()=>{
     Asignado: usuario ? usuario.Asignado : ""
   };
 
-  try{
-    await set(ref(db,'LimitesVentas/'+key), data);
+  try {
+    await set(ref(db, 'LimitesVentas/' + key), data);
 
-    statusDiv.textContent = `Límite guardado para ${tipoJugada} ${numero || ''}`;
-    statusDiv.style.color='green';
+    statusDiv.textContent = `Límite guardado para ${tipoJugada} ${numero}`;
+    statusDiv.style.color = "green";
 
     limpiarCampos();
     cargarTablaLimites();
 
-  }catch(e){
+  } catch (e) {
     console.error(e);
-    statusDiv.textContent='Error al guardar límite';
-    statusDiv.style.color='red';
+    statusDiv.textContent = 'Error al guardar límite';
+    statusDiv.style.color = 'red';
   }
 });
-
 
 // funcion carga limite en la tabla
 async function cargarTablaLimites() {
