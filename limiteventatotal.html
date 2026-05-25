@@ -68,6 +68,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase
 import { getDatabase, ref, get, child, set } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
 const app = initializeApp(firebaseConfig);
+
 const db = getDatabase(app);
 
 //control de cerrar solo 
@@ -82,7 +83,7 @@ function resetTimer(){
 function cerrarSesionAuto(){
   localStorage.removeItem("usuarioLogueado");
   alert("Sesión cerrada por inactividad");
-  window.location.href = "login.html";
+  window.location.href = "index.html";
 }
 
 ["click","mousemove","keypress","touchstart"].forEach(evt=>{
@@ -93,7 +94,7 @@ resetTimer();
 
 const usuarioGuardado = JSON.parse(localStorage.getItem("usuarioLogueado"));
 const usuarioLogueado = usuarioGuardado?.nombre || "";
-const tipoUsuario = usuarioGuardado?.tipo || ""; // Administrador o ADM
+const tipoUsuario = usuarioGuardado?.tipo || "";
 
 window.toggleMenu = function(){
   const m = document.getElementById("menuDropdown");
@@ -102,7 +103,8 @@ window.toggleMenu = function(){
 
 function actualizarUser(){
   const now = new Date().toLocaleString();
-  document.getElementById("userInfo").innerHTML = `Usuario: ${usuarioLogueado} | ${now}`;
+  document.getElementById("userInfo").innerHTML =
+    `Usuario: ${usuarioLogueado} | ${now}`;
 }
 
 async function cargarUsuariosYLimites(){
@@ -114,7 +116,9 @@ async function cargarUsuariosYLimites(){
   tbody.innerHTML = "";
 
   const snapUsers = await get(child(ref(db),"Usuarios"));
-  const snapLimites = await get(child(ref(db),"LimitesTotales"));
+
+  // 🔥 CAMBIO: ahora usamos ventatotalxdialimite
+  const snapLimites = await get(child(ref(db),"ventatotalxdialimite"));
 
   const usuarios = snapUsers.val() || {};
   const limites = snapLimites.val() || {};
@@ -123,26 +127,23 @@ async function cargarUsuariosYLimites(){
 
     const u = usuarios[key];
 
-    // FILTRO POR ROL
     if(tipoUsuario !== "Administrador" && u.Asignado !== usuarioLogueado){
       continue;
     }
 
-    const usuarioId = u.Id; // 🔥 ID REAL
+    const usuarioId = u.Id;
     const nombre = u.NombreUsuario;
 
-    // 🔥 buscar límite por usuarioId
+    // 🔥 NUEVA ESTRUCTURA
     const limiteData = limites[usuarioId] || {};
     const limite = limiteData.limiteVentaTotal ?? 50000;
 
-    // COMBO
     combo.innerHTML += `
       <option value="${usuarioId}">
         ${nombre}
       </option>
     `;
 
-    // TABLA
     tbody.innerHTML += `
       <tr>
         <td>${nombre}</td>
@@ -163,7 +164,6 @@ async function actualizarLimite(){
     return;
   }
 
-  // 🔥 buscar usuario real desde cache de la tabla
   const snap = await get(child(ref(db),"Usuarios"));
   const usuarios = snap.val() || {};
 
@@ -175,27 +175,28 @@ async function actualizarLimite(){
     return;
   }
 
-  const refLimite = ref(db, "LimitesTotales/" + usuarioId);
+  // 🔥 CAMBIO: nueva ruta
+  const refLimite = ref(db, "ventatotalxdialimite/" + usuarioId);
 
   await set(refLimite, {
     usuarioId: usuarioId,
-    nombreUsuario: u.NombreUsuario, // ✔ siempre correcto
-    limiteVentaTotal: nuevo,
-    actualizadoPor: usuarioLogueado,
-    fecha: new Date().toISOString()
+    nombreUsuario: u.NombreUsuario,
+    limiteVentaTotal: nuevo
   });
 
   alert("Límite actualizado correctamente ✅");
 
   cargarUsuariosYLimites();
 }
+
 window.onload = async ()=>{
   actualizarUser();
   setInterval(actualizarUser,1000);
 
   await cargarUsuariosYLimites();
 
-  document.getElementById("btnActualizar").addEventListener("click", actualizarLimite);
+  document.getElementById("btnActualizar")
+    .addEventListener("click", actualizarLimite);
 }
 </script>
 
