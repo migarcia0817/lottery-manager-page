@@ -300,6 +300,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 /* 🔥 PREMIOS (CORREGIDO CON TUS COLORES) */
 async function cargarPremios() {
+
   // 1. Capturar la fecha del input para que la búsqueda funcione
   const inputFecha = document.getElementById("fechaPremio").value;
   const fecha = inputFecha || hoyLocal();
@@ -316,40 +317,92 @@ async function cargarPremios() {
   tbody.innerHTML = "";
   const ahora = new Date();
 
+  // 🔥 Detectar domingo
+  const esDomingo = ahora.getDay() === 0;
+
   // Recorremos las loterías para mostrar su estado
   for (const clave in loteriasData) {
-    const res = resultadosData[clave] ? resultadosData[clave][fecha] : null;
-    const horarioStr = loteriasData[clave]?.HorarioCierre || "—";
-    const nombreLoteria = loteriasData[clave]?.LoteriaNombre || clave;
+
+    const res = resultadosData[clave]
+      ? resultadosData[clave][fecha]
+      : null;
+
+    const nombreLoteria =
+      loteriasData[clave]?.LoteriaNombre || clave;
+
+    // 🔥 Horario original
+    let horarioStr =
+      loteriasData[clave]?.HorarioCierre || "—";
+
+    // 🔥 SOLO PARA MOSTRAR LOS DOMINGOS
+
+    // LEIDSA → 3:55 PM
+    if (
+      esDomingo &&
+      nombreLoteria.toLowerCase().includes("leidsa")
+    ) {
+      horarioStr = "15:55";
+    }
+
+    // NACIONAL → 5:55 PM
+    if (
+      esDomingo &&
+      nombreLoteria.toLowerCase().includes("nacional")
+    ) {
+      horarioStr = "17:55";
+    }
 
     const fila = document.createElement("tr");
     let horarioCierre = null;
 
     if (horarioStr !== "—") {
-      const [hora, minuto] = horarioStr.split(":").map(Number);
+
+      const [hora, minuto] =
+        horarioStr.split(":").map(Number);
+
       horarioCierre = new Date();
-      horarioCierre.setHours(hora, minuto, 0, 0);
+
+      horarioCierre.setHours(
+        hora,
+        minuto,
+        0,
+        0
+      );
     }
 
     let segundoTd = "";
 
-    // 2. Aplicar tus colores originales
+    // 🔵 Si tiene premios
     if (res && res.PrimerPremio) {
-      // AZUL si hay premios
-      segundoTd = `<span style="white-space:nowrap; color:#0D1DB8; font-weight:bold;">
-        ${res.PrimerPremio} - ${res.SegundoPremio} - ${res.TercerPremio}
-      </span>`;
+
+      segundoTd = `
+        <span style="white-space:nowrap; color:#0D1DB8; font-weight:bold;">
+          ${res.PrimerPremio} - ${res.SegundoPremio} - ${res.TercerPremio}
+        </span>
+      `;
+
       fila.style.color = "#0D1DB8";
 
-    } else if (horarioCierre && ahora < horarioCierre && fecha === hoyLocal()) {
-      // VERDE si está activo (solo para hoy)
+    }
+
+    // 🟢 Activo
+    else if (
+      horarioCierre &&
+      ahora < horarioCierre &&
+      fecha === hoyLocal()
+    ) {
+
       segundoTd = "Activo";
       fila.style.color = "green";
 
-    } else {
-      // ROJO si no hay resultados
+    }
+
+    // 🔴 Sin resultado
+    else {
+
       segundoTd = "Sin resultado";
-      fila.classList.add("sin-resultado"); // Usa tu estilo CSS .sin-resultado { color: red; }
+      fila.classList.add("sin-resultado");
+
     }
 
     fila.innerHTML = `
@@ -361,7 +414,6 @@ async function cargarPremios() {
     tbody.appendChild(fila);
   }
 }
-
 /* 🔥 EXPORT */
 window.cargarPremios = cargarPremios;
 window.hoyLocal = hoyLocal;
